@@ -13,55 +13,124 @@ buses-own [
   ; New local variables for students.
   ; You can create any new local variable you want. Just declare them here.
   personal_route
+  current_route_index
+  closed_route
   returning
+  delay
+  delayed
 ]
  
 globals [graph]
 
 to init-buses
   ; Initialize your agents here.
-  if count buses != 1 [
-      ask bus 24 [
+  ask buses [
+    if personal_route = 0 [
+      let line_number bus_id mod 5
+      
+      if line_number = 0 [
         set personal_route [3 16 11 1 19 23]
-        set returning False
       ]
-      ask bus 25 [
+      if line_number = 1 [
         set personal_route [3 4 5 17 7 1 23]
-        set returning False
       ]
+      if line_number = 2 [
+        set personal_route [3 4 10 13 23]
+      ]
+      if line_number = 3 [
+        set personal_route [3 20 21 22 12 15 18 15 0 14 23]
+      ]
+      if line_number = 4 [
+        set personal_route [3 9 8 6 8 2 8 9 3]
+      ]
+      set returning False
+      set delay floor (bus_id / 5)
+      set current_route_index 0
+      set delayed True
+    ]      
   ]
 
   ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
 end
   
+to-report at-stop 
+  ifelse current_stop != -1 and previous_stop != -1 [
+    report True
+  ][report False]
+end
+
+to update-returning-value 
+  ifelse returning [
+    set current_route_index current_route_index - 1
+  ][set current_route_index current_route_index + 1]
+end
+
+to-report not-full 
+  report (bus_type = 1 and length bus_passengers != 12) or (bus_type = 2 and length bus_passengers != 60) or (bus_type = 3 and length bus_passengers != 150)
+end
+
+to pickup-passengers
+  foreach get-passengers-at-stop item current_route_index personal_route [
+    if not-full [
+      ifelse current_route_index = 0 or current_route_index = length personal_route - 1 [
+        if member? item 1 ? personal_route [
+          pick-up-passenger item 0 ?
+        ]
+      ] [pick-up-passenger item 0 ?]
+    ]
+  ]
+end
+
+to drop-passengers
+  ifelse current_route_index = 0 or current_route_index = length personal_route - 1[
+    foreach bus_passengers [
+        drop-off-passenger item 0 ?
+    ]
+  ][
+  foreach bus_passengers [
+    if item 1 ? = current_stop [
+      drop-off-passenger item 0 ?
+    ]
+  ]
+  ]
+end
+
 to execute-actions
   ifelse count buses = 1 [
-    add-bus 3
+    let i 0
+    while [i < 50] [
+      add-bus 3
+      set i i + 1
+    ]
+
     init-buses
+    die
   ]
   [
-    let x 0
-    let route_index 0
-    foreach personal_route [
-      if ? = previous_stop [
-        set route_index x
+    ifelse delayed [
+      if delay * 5 = ticks [
+        set delayed  False
       ]
-      set x x + 1
-    ]
-    if route_index + 1 = length personal_route [
-      set returning True
-    ]
-    if route_index = 0 [
-      set returning False
-    ]
-    
-    ifelse returning [
-      travel-to item (route_index - 1) personal_route
     ] [
-    travel-to item (route_index + 1) personal_route
+      if at-stop [
+        update-returning-value
+        drop-passengers
+        pickup-passengers
+      ]
+      
+      if current_route_index + 1 = length personal_route [
+        set returning True
+      ]
+      if current_route_index = 0 [
+        set returning False
+      ]
+      
+      ifelse returning [
+        travel-to item (current_route_index - 1) personal_route
+      ] [
+      travel-to item (current_route_index + 1) personal_route
+      ]
     ]
   ]
-  ; Add decision making strategies for your agents here.
-  ; You are allowed to use the global variable 'ticks'.
 end
