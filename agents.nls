@@ -12,19 +12,21 @@ buses-own [
 
   ; New local variables for students.
   ; You can create any new local variable you want. Just declare them here.
-  personal_route
-  current_route_index
-  closed_route
-  returning
-  delay
-  delayed
+  personal_route      ;a list of bus stops describing the line of the bus
+  current_route_index ;index of the last visited stop
+  returning           ;False if going in the direction of the last stop, True otherwise
+  delay               ;time to delay the departure of the bus from the first stop 
+  delayed             ;True - enable the delay, False - disable it
 ]
  
 globals [graph]
 
 to init-buses
   ; Initialize your agents here.
+  
     if personal_route = 0 [
+      
+      ;uniformly distribute the buses to the lines
       let line_number bus_id mod 5
       
       if line_number = 0 [
@@ -43,7 +45,9 @@ to init-buses
         set personal_route [3 9 8 6 8 2 8 9 3]
       ]
       set returning False
-      set delay floor (bus_id / 5)
+      
+      ;set the delay according to the line of the bus
+      set delay 10 * (floor (bus_id / 5) - 5)
       set current_route_index 0
       set delayed True
     ]      
@@ -53,26 +57,37 @@ to init-buses
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
 end
   
+;finds if the bus is at a stop
 to-report at-stop 
   ifelse current_stop != -1 and previous_stop != -1 [
     report True
   ][report False]
 end
 
-to update-returning-value 
+;update the current stop index of the bus
+to update-current-index
   ifelse returning [
     set current_route_index current_route_index - 1
   ][set current_route_index current_route_index + 1]
 end
 
+;checks if the bus is not full
 to-report not-full 
   report (bus_type = 1 and length bus_passengers != 12) or (bus_type = 2 and length bus_passengers != 60) or (bus_type = 3 and length bus_passengers != 150)
 end
 
+;checks if the the first and final stop of the bus line are the same
+to-report is-circular
+  report (item 0 personal_route) = (item (length personal_route - 1) personal_route)
+end
+
+;decide which passengers to pick at a stop
 to pickup-passengers
   foreach get-passengers-at-stop item current_route_index personal_route [
     if not-full [
-      ifelse current_route_index = 0 or current_route_index = length personal_route - 1 [
+      ;pickup passengers from Centraal only if their final destinations are withing the line scope
+      ;always pickup passengers from anywhere else
+      ifelse current_route_index = 0 or  (current_route_index = (length personal_route - 1) and is-circular)[
         if member? item 1 ? personal_route [
           pick-up-passenger item 0 ?
         ]
@@ -81,12 +96,16 @@ to pickup-passengers
   ]
 end
 
+;decide which passengers to drop at a stop
 to drop-passengers
+  
   ifelse current_route_index = 0 or current_route_index = length personal_route - 1[
+  ;drop all passengers at the end stops
     foreach bus_passengers [
         drop-off-passenger item 0 ?
     ]
   ][
+  ;at any other stop only drop passengers if the stop is their destination
   foreach bus_passengers [
     if item 1 ? = current_stop [
       drop-off-passenger item 0 ?
@@ -97,26 +116,30 @@ end
 
 to execute-actions
   ifelse count buses = 1 [
+    ;add a fixed number of buses at the beginning
     let i 0
-    while [i < 50] [
+    let buses_count 50
+    while [i < (buses_count - 1)] [
       add-bus 3
       set i i + 1
     ]
-
-    die
   ]
   [
     ifelse delayed [
-      if delay * 5 = ticks [
+      ;delay departing from Centraal at the beginning
+      ;so the busses travel at distance from each other
+      if delay = ticks [
         set delayed  False
       ]
     ] [
       if at-stop [
-        update-returning-value
-        drop-passengers
-        pickup-passengers
+        ;in case the bus is at a stop
+        update-current-index ; update the current position index to the current stop
+        drop-passengers ; drop passengers according to rules
+        pickup-passengers ; pickup passengers according to rules
       ]
       
+      ;set the state of the travel as going forward on the path or returning to the first stop
       if current_route_index + 1 = length personal_route [
         set returning True
       ]
@@ -124,6 +147,7 @@ to execute-actions
         set returning False
       ]
       
+      ;travel towards the next stop in the path
       ifelse returning [
         travel-to item (current_route_index - 1) personal_route
       ] [
