@@ -29,17 +29,17 @@ to-report load-distances
 end
 
 to init-buses
-  
   if graph = 0    [
     set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
   ]
     
-; Initialize your agents here.
-  if distance_matrix = 0 [
-    set distance_matrix load-distances
-    set mother_station 23; to the one of the bus that asked for support (check inbox)
-    set going_in_service True
-    
+  ; Initialize your agents here.
+  if (bus_id - 25) mod 24 < 24 [
+    if distance_matrix = 0 [
+      set distance_matrix load-distances
+      set mother_station (bus_id - 25) mod 24; to the one of the bus that asked for support (check inbox)
+      set going_in_service True
+    ]
   ]
 end
   
@@ -152,6 +152,15 @@ end
 to execute-actions
   set bus_count count buses
   
+  if bus_count = 1 [
+    let i 0
+    while [i < 24 * 2] [
+      add-bus 2
+      set i i + 1
+    ]
+    die
+  ]
+  
   ifelse going_in_service[
     go-to-mother_station
   ]
@@ -162,18 +171,20 @@ to execute-actions
       ifelse current_stop = mother_station [
         let best_station get-optimal-station
         pickup-passengers best_station
-        travel-to best_station
+        set next_stop best_station
       ]
       [
         pickup-passengers mother_station
-        travel-to mother_station
+        set next_stop mother_station
       ]
+    ]
+    if next_stop != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
+      travel-to next_stop
     ]
     
     bus-needed? ; function that decides if a bus is needed and in which station
   ]
 end
-
 
 
 to bus-needed?
