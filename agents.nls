@@ -15,6 +15,7 @@ buses-own [
   distance_matrix
   mother_station
   going_in_service
+  bus_count
 ]
  
 globals [graph]
@@ -108,9 +109,9 @@ to-report measure-distance [station0 station1]
   report item station0 item station1 distance_matrix
 end
 
-to-report distance-shortened [station]
-  let distance0 measure-distance current_stop item 1 ?
-  let distance1 measure-distance station item 1 ?
+to-report distance-shortened [station passenger]
+  let distance0 measure-distance current_stop item 1 passenger
+  let distance1 measure-distance station item 1 passenger
   report distance1 < distance0
 end
 
@@ -121,14 +122,14 @@ to-report get-optimal-station
     let g 0
     let station ?
     foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
-      if distance-shortened [
+      if distance-shortened station ? [
         set g (g + 1)
       ]
     ]
     
     ;to consider also how many people are on that station change k to a positive value
     let k 0
-    set  g  g + k * count get-passengers-at-stop station
+    set  g  g + k * length get-passengers-at-stop station
     
     if  g > best_gain[
       set best_gain  g
@@ -141,7 +142,7 @@ end
 to pickup-passengers [station] ;pick up the passengers that will get a gain from going to that bus stop
   foreach get-passengers-at-stop current_stop [
     if not-full [ ; if the bus has spare places
-      if distance-shortened station [
+      if distance-shortened station ? [
         pick-up-passenger item 0 ?
       ]
     ]
@@ -158,7 +159,7 @@ to execute-actions
     if at-stop [
       drop-passengers
       
-      ifelse current-stop = mother_station [
+      ifelse current_stop = mother_station [
         let best_station get-optimal-station
         pickup-passengers best_station
         travel-to best_station
@@ -180,11 +181,11 @@ to bus-needed?
   ; consider the number of expected passengers in your mother_station for the next tick
   ; might count the soon to be dropped (communication yeeey)
   ; count the number of buses already on that station
-  let m-s mother_station
-  let bus_here count buses with [mother_staton = ms] ;this also has to be done with communication (yey2)
+  let m_s mother_station
+  let bus_here count buses with [mother_station = m_s] ;this also has to be done with communication (yey2)
   ; if the count seems insufficent -> add-bus 
-  if bus_count < buses-needed[
-    ; add-bus
-    ; send message to the new bus telling it the station to set as main
-  ]
+;  if bus_count < buses-needed[
+;    ; add-bus
+;    ; send message to the new bus telling it the station to set as main
+;  ]
 end
