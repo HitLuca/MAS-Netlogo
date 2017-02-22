@@ -12,147 +12,179 @@ buses-own [
 
   ; New local variables for students.
   ; You can create any new local variable you want. Just declare them here.
-  personal_route      ;a list of bus stops describing the line of the bus
-  current_route_index ;index of the last visited stop
-  returning           ;False if going in the direction of the last stop, True otherwise
-  delay               ;time to delay the departure of the bus from the first stop 
-  delayed             ;True - enable the delay, False - disable it
+  distance_matrix
+  mother_station
+  going_in_service
 ]
  
 globals [graph]
 
+;loads the distances matrix in memory
+to-report load-distances
+  file-open "distances.txt"
+  let distances_matrix file-read
+  file-close
+  report distances_matrix
+end
+
 to init-buses
-  ; Initialize your agents here.
   
-    if personal_route = 0 [
-      
-      ;uniformly distribute the buses to the lines
-      let line_number bus_id mod 5
-      
-      if line_number = 0 [
-        set personal_route [3 16 11 1 19 23]
-      ]
-      if line_number = 1 [
-        set personal_route [3 4 5 17 7 1 23]
-      ]
-      if line_number = 2 [
-        set personal_route [3 4 10 13 23]
-      ]
-      if line_number = 3 [
-        set personal_route [3 20 21 22 12 15 18 15 0 14 23]
-      ]
-      if line_number = 4 [
-        set personal_route [3 9 8 6 8 2 8 9 3]
-      ]
-      set returning False
-      
-      ;set the delay according to the line of the bus
-      set delay 10 * (floor (bus_id / 5) - 5)
-      set current_route_index 0
-      set delayed True
-    ]      
-  
-
-  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
-  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+  if graph = 0    [
+    set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+  ]
+    
+; Initialize your agents here.
+  if distance_matrix = 0 [
+    set distance_matrix load-distances
+    set mother_station 23; to the one of the bus that asked for support (check inbox)
+    set going_in_service True
+    
+  ]
 end
   
-;finds if the bus is at a stop
-to-report at-stop 
-  ifelse current_stop != -1 and previous_stop != -1 [
+;station connected to origin that is closer to the destination
+to-report station-closer-to-destination [origin destination]
+  let minimum_distance measure-distance origin destination
+  let nearest_station origin
+  
+  let adjacent_stations item origin graph
+  foreach adjacent_stations [
+    let new_distance measure-distance ? destination
+    if new_distance < minimum_distance [
+      set minimum_distance new_distance
+      set nearest_station ?
+    ]
+  ]
+  report nearest_station
+end
+  
+
+
+to-report is-connected [origin destination]
+  ifelse member? destination item origin graph [
     report True
-  ][report False]
+  ][ report False]
 end
 
-;update the current stop index of the bus
-to update-current-index
-  ifelse returning [
-    set current_route_index current_route_index - 1
-  ][set current_route_index current_route_index + 1]
+to travel-to-destination [origin destination]
+  if origin != destination [
+    ifelse is-connected origin destination [
+      travel-to destination
+    ][
+      travel-to station-closer-to-destination origin destination
+    ]
+  ]
 end
 
-;checks if the bus is not full
+to-report at-stop 
+  report current_stop != -1
+end
+
+to go-to-mother_station
+  ifelse current_stop = mother_station [
+    set going_in_service False
+  ][
+  ifelse not at-stop [
+    travel-to next_stop
+  ][
+  if not (current_stop = mother_station) [
+    travel-to-destination current_stop mother_station 
+  ]
+  ]
+  ]
+end
+
 to-report not-full 
   report (bus_type = 1 and length bus_passengers != 12) or (bus_type = 2 and length bus_passengers != 60) or (bus_type = 3 and length bus_passengers != 150)
 end
-
-;checks if the the first and final stop of the bus line are the same
-to-report is-circular
-  report (item 0 personal_route) = (item (length personal_route - 1) personal_route)
-end
-
-;decide which passengers to pick at a stop
-to pickup-passengers
-  foreach get-passengers-at-stop item current_route_index personal_route [
-    if not-full [
-      ;pickup passengers from Centraal only if their final destinations are withing the line scope
-      ;always pickup passengers from anywhere else
-      ifelse current_route_index = 0 or  (current_route_index = (length personal_route - 1) and is-circular)[
-        if member? item 1 ? personal_route [
-          pick-up-passenger item 0 ?
-        ]
-      ] [pick-up-passenger item 0 ?]
-    ]
-  ]
-end
-
-;decide which passengers to drop at a stop
-to drop-passengers
-  
-  ifelse current_route_index = 0 or current_route_index = length personal_route - 1[
-  ;drop all passengers at the end stops
-    foreach bus_passengers [
-        drop-off-passenger item 0 ?
-    ]
-  ][
-  ;at any other stop only drop passengers if the stop is their destination
+ 
+to drop-passengers ;drop all the passengers
   foreach bus_passengers [
-    if item 1 ? = current_stop [
-      drop-off-passenger item 0 ?
+    drop-off-passenger item 0 ?
+  ]
+end
+
+to-report measure-distance [station0 station1]
+  report item station0 item station1 distance_matrix
+end
+
+to-report distance-shortened [station]
+  let distance0 measure-distance current_stop item 1 ?
+  let distance1 measure-distance station item 1 ?
+  report distance1 < distance0
+end
+
+to-report get-optimal-station
+  let best_station (- 1)
+  let best_gain 0
+  foreach item mother_station graph[ ;for each connected station
+    let g 0
+    let station ?
+    foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
+      if distance-shortened [
+        set g (g + 1)
+      ]
+    ]
+    
+    ;to consider also how many people are on that station change k to a positive value
+    let k 0
+    set  g  g + k * count get-passengers-at-stop station
+    
+    if  g > best_gain[
+      set best_gain  g
+      set best_station station
     ]
   ]
+  report best_station
+end
+
+to pickup-passengers [station] ;pick up the passengers that will get a gain from going to that bus stop
+  foreach get-passengers-at-stop current_stop [
+    if not-full [ ; if the bus has spare places
+      if distance-shortened station [
+        pick-up-passenger item 0 ?
+      ]
+    ]
   ]
 end
 
 to execute-actions
-  ifelse count buses = 1 [
-    ;add a fixed number of buses at the beginning
-    let i 0
-    let buses_count 50
-    while [i < (buses_count - 1)] [
-      add-bus 3
-      set i i + 1
-    ]
+  set bus_count count buses
+  
+  ifelse going_in_service[
+    go-to-mother_station
   ]
   [
-    ifelse delayed [
-      ;delay departing from Centraal at the beginning
-      ;so the busses travel at distance from each other
-      if delay = ticks [
-        set delayed  False
-      ]
-    ] [
-      if at-stop [
-        ;in case the bus is at a stop
-        update-current-index ; update the current position index to the current stop
-        drop-passengers ; drop passengers according to rules
-        pickup-passengers ; pickup passengers according to rules
-      ]
+    if at-stop [
+      drop-passengers
       
-      ;set the state of the travel as going forward on the path or returning to the first stop
-      if current_route_index + 1 = length personal_route [
-        set returning True
+      ifelse current-stop = mother_station [
+        let best_station get-optimal-station
+        pickup-passengers best_station
+        travel-to best_station
       ]
-      if current_route_index = 0 [
-        set returning False
-      ]
-      
-      ;travel towards the next stop in the path
-      ifelse returning [
-        travel-to item (current_route_index - 1) personal_route
-      ] [
-      travel-to item (current_route_index + 1) personal_route
+      [
+        pickup-passengers mother_station
+        travel-to mother_station
       ]
     ]
+    
+    bus-needed? ; function that decides if a bus is needed and in which station
+  ]
+end
+
+
+
+to bus-needed?
+  ; consider the number of passengers waiting in your mother_station
+  ; consider the number of expected passengers in your mother_station for the next tick
+  ; might count the soon to be dropped (communication yeeey)
+  ; count the number of buses already on that station
+  let m-s mother_station
+  let bus_here count buses with [mother_staton = ms] ;this also has to be done with communication (yey2)
+  ; if the count seems insufficent -> add-bus 
+  if bus_count < buses-needed[
+    ; add-bus
+    ; send message to the new bus telling it the station to set as main
   ]
 end
