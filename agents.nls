@@ -17,7 +17,7 @@ buses-own [
   going_in_service
   companions
   
-  leader
+  the_chosen_one
   last_order_tick
   new_buses
   pending_orders
@@ -45,10 +45,10 @@ to init-buses
       set mother_station (bus_id - 25) mod 24; to the one of the bus that asked for support (check inbox)
       ]
       [set mother_station -1]
-      set leader 25
+      set the_chosen_one 25
       set last_order_tick 0
       set going_in_service True
-      if leader = bus_id
+      if the_chosen_one = bus_id
       [set new_buses []
         set pending_orders []
         ]
@@ -217,7 +217,7 @@ to bus-needed?
   
   if last_order_tick < ticks - 5 and bus_id = (item 0 companions) and (length get-passengers-at-stop mother_station)/(length companions) > threshold
   [ 
-    send-message leader lput mother_station ["order"]
+    send-message the_chosen_one lput mother_station ["order"]
     set last_order_tick ticks
     ]
   let m_s mother_station
@@ -252,23 +252,23 @@ to handle-messages
     [
       set companions lput (item 1 message) companions
       
-      if bus_id = item 0 companions[
-        foreach companions
-        [
-          if bus_id != ?
-          [send-message ? lput (item 1 message) ["new-companion"]]
-        ]
-      ]
+;      if bus_id = item 0 companions[
+;        foreach companions
+;        [
+;          if bus_id != ?
+;          [send-message ? lput (item 1 message) ["new-companion"]]
+;        ]
+;      ]
       ]
     
     if msg_type = "order"
     [
-      if bus_id = leader
+      if bus_id = the_chosen_one
       [
         
         ifelse not member? (item ind inbox) pending_orders
         [
-          add-bus 2
+          add-bus 3
           let new_bus_id (bus_counter + 25)
           set new_buses lput new_bus_id new_buses
           set pending_orders lput (item ind inbox) pending_orders
@@ -277,7 +277,7 @@ to handle-messages
         [
           
           let sender_mother_station item 1 message
-          send-message (item 0 new_buses ) lput companions lput sender_mother_station ["init"]
+          send-message (item 0 new_buses ) lput (lput item 0 companions []) lput sender_mother_station ["init"]
           send-message sender lput (item 0 new_buses ) ["new-companion"]
           
           set pending_orders remove-item 0 pending_orders
@@ -291,8 +291,6 @@ to handle-messages
     if msg_type != "order"
     [set handled lput (item ind inbox) handled
       ]
-    
-    show inbox
     
 ;    foreach message
 ;    [
@@ -311,5 +309,4 @@ to handle-messages
   [
     set inbox remove ? inbox
     ]
-  
 end
