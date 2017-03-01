@@ -17,14 +17,16 @@ buses-own [
   going_in_service
   
   independent
-  companions
+  ;companions
   
   leader
+  fixed_buses
+  independent_buses
   new_buses
-  indipendents_buses
   
   last_order_tick
   pending_orders
+  asked_support
 ]
 
 ;hi!
@@ -50,6 +52,14 @@ to init-buses
       ifelse bus_id <= 49[
         set mother_station (bus_id - 25) mod 24; to the one of the bus that asked for support (check inbox)
         set independent false
+        
+        set fixed_buses []
+        let i 25
+        while [i < 50] [
+          set fixed_buses lput i fixed_buses
+          set i (i + 1)
+        ]
+        set independent_buses []
       ]
       [
         set mother_station -1
@@ -63,7 +73,7 @@ to init-buses
         set pending_orders []
       ]
     ]
-  
+  set asked_support [false]
   ;set companions lput bus_id []
 end
   
@@ -173,13 +183,14 @@ to pickup-passengers [station] ;pick up the passengers that will get a gain from
     ]
   ]
   
-  if left_down > 0[
-    help-needed left_down
+  if not independent and left_down > 0[
+    ;help-needed left_down
+    bus-needed? lput left_down []
   ]
 end
 
 to help-needed [left_down]
-  send-message (item 0 companions) lput left_down ["insufficient-capacity"]
+  ;send-message (item 0 companions) lput left_down ["insufficient-capacity"]
 end
 
 to execute-actions
@@ -236,7 +247,7 @@ end
 to handle-messages
   let ind 0
   let handled []
-  let bus_counter count buses
+  let bus_counter length fixed_buses + length independent_buses
   let help_requests []
   
   while[ind < length inbox ]
@@ -256,29 +267,32 @@ to handle-messages
       set handled lput (item ind inbox) handled
     ]
     
-    if msg_type = "redirect"
-    [
+    if msg_type = "redirect"[
       set mother_station item 1 message
       set going_in_service true
       set handled lput (item ind inbox) handled
     ]
     
-    if msg_type = "new-companion"
-    [
-      set companions lput (item 1 message) companions
-      
-      if bus_id = item 0 companions[
-        foreach companions
-        [
-          if bus_id != ?
-          [send-message ? lput (item 1 message) ["new-companion"]]
-        ]
-      ]
+;    if msg_type = "new-companion"
+;    [
+;      set companions lput (item 1 message) companions
+;      
+;      if bus_id = item 0 companions[
+;        foreach companions
+;        [
+;          if bus_id != ?
+;          [send-message ? lput (item 1 message) ["new-companion"]]
+;        ]
+;      ]
+;      set handled lput (item ind inbox) handled
+;    ]
+
+    if msg_type = "new-independent"[
+      set independent_buses lput (item 1 message) independent_buses
       set handled lput (item ind inbox) handled
     ]
     
-    if msg_type = "order"
-    [
+    if msg_type = "order"[
       ifelse not member? (item ind inbox) pending_orders
       [
         add-bus (item 2 message)
@@ -289,8 +303,12 @@ to handle-messages
       ]
       [
         let sender_mother_station item 1 message
-        send-message (item 0 new_buses ) lput companions lput sender_mother_station ["init"]
-        send-message sender lput (item 0 new_buses ) ["new-companion"]
+        send-message (item 0 new_buses ) lput [] lput sender_mother_station ["init"]
+        ;send-message sender lput (item 0 new_buses ) ["new-companion"]
+        
+        foreach fixed_buses[
+          send-message ? lput (item 0 new_buses ) ["new-independent"] ; let everyone know there's a new independent bus and its ID
+        ]
         
         set pending_orders remove-item 0 pending_orders
         set new_buses remove-item 0 new_buses
@@ -298,14 +316,14 @@ to handle-messages
       ]
     ]
     
-    if msg_type = "insufficient-capacity"[
-      ifelse (ticks - msg_tick) < 10[
-        set help_requests lput (item 1 message) help_requests
-      ]
-      [
-        set handled lput (item ind inbox) handled
-      ]
-    ]
+;    if msg_type = "insufficient-capacity"[
+;      ifelse (ticks - msg_tick) < 10[
+;        set help_requests lput (item 1 message) help_requests
+;      ]
+;      [
+;        set handled lput (item ind inbox) handled
+;      ]
+;    ]
     
     show inbox
     
@@ -329,29 +347,51 @@ to handle-messages
     bus-needed? help_requests
   ]
   
+  if item 0 asked_support [
+   if item 1 asked_support > ticks + 2 [
+     send-message leader lput 3 lput mother_station ["order"]
+     set asked_support [false]
+   ] 
+  ]
+  
 end
 
 to bus-needed? [help_requests]
   let left_down 0
   foreach help_requests[ set left_down (left_down + ?) ] ;how many couldn't be transported even though the bus wanted
   let pas_wait (length get-passengers-at-stop mother_station) ;how many people are right now in the station
-  let comp_num (length companions) ;how many buses assigned to this stop
+  let comp_num 1 ; for now there is only one fixed bus for each stop
+  ;let comp_num (length companions) ;how many buses assigned to this stop
   let full_buses (length help_requests) ;how many failed to load all passengers in need
   
   ;let kapacity 100
   
-  ;if their combination
-  ifelse (left_down + pas_wait) > (comp_num - full_buses) * 200[
-    send-message leader lput 3 lput mother_station ["order"] ;send a message to order a new medium bus
-    clean-inbox-order ;when buying a new bus we clean all messages of insufficient-capacity
-  ]
-  [
-    if (left_down + pas_wait) > (comp_num - full_buses) * 125[
-      send-message leader lput 2 lput mother_station ["order"] ;send a message to order a new big bus
-      clean-inbox-order
+;  ifelse (left_down + pas_wait) > (comp_num - full_buses + 1) * 200[ ;with the addition of one big bus, will we still have passengers waiting?
+;    send-message leader lput 3 lput mother_station ["order"] ;send a message to order a new medium bus
+;    clean-inbox-order ;when buying a new bus we clean all messages of insufficient-capacity
+;  ]
+;  [
+;    if (left_down + pas_wait) > (comp_num - full_buses + 1) * 125[ ;with the addition of one mediumg bus, will we still have passengers waiting?
+;      send-message leader lput 2 lput mother_station ["order"] ;send a message to order a new big bus
+;      clean-inbox-order
+;    ]
+;  ]
+
+  if (left_down + pas_wait) > 200[
+    ifelse length independent_buses = 0 [
+      send-message leader lput 3 lput mother_station ["order"]
+    ]
+    [
+      foreach independent_buses[
+        send-message ? lput mother_station ["ask-support"]
+      ]
+      set asked_support lput ticks [true] ;saves that it has called for support and when ;in handle messages if this is set to true it checks the time, if in two ticks it didn't receive answer it orders a new bus and set it to false
     ]
   ]
+
 end
+  
+
 
 to clean-inbox-order
   let ind 0
