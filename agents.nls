@@ -22,6 +22,8 @@ buses-own [
   new_buses
   pending_orders
 ]
+
+;hi!
  
 globals [graph]
 
