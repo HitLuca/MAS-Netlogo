@@ -823,10 +823,10 @@ days
 11
 
 BUTTON
-1137
-342
-1203
-375
+1097
+43
+1163
+76
 NIL
 go
 NIL
@@ -890,10 +890,10 @@ number_of_messages
 11
 
 PLOT
-21
-848
-335
-1066
+1098
+327
+1412
+545
 Average Travel Time
 Ticks
 Time
@@ -909,10 +909,10 @@ PENS
 "pen-1" 1.0 0 -7500403 true "" ""
 
 PLOT
-335
-848
-649
-1066
+1412
+327
+1726
+545
 Total Amount of Money Spent
 Ticks
 Euros
@@ -927,10 +927,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot expenses"
 
 PLOT
-648
-848
-962
-1066
+1100
+545
+1414
+763
 Total Number of Messages Sent
 Ticks
 #Messages

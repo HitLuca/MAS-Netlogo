@@ -15,11 +15,15 @@ buses-own [
   distance_matrix
   mother_station
   going_in_service
+  
+  independent
   companions
   
-  the_chosen_one
-  last_order_tick
+  leader
   new_buses
+  indipendents_buses
+  
+  last_order_tick
   pending_orders
 ]
 
@@ -44,19 +48,23 @@ to init-buses
     if distance_matrix = 0 [
       set distance_matrix load-distances
       ifelse bus_id <= 49[
-      set mother_station (bus_id - 25) mod 24; to the one of the bus that asked for support (check inbox)
+        set mother_station (bus_id - 25) mod 24; to the one of the bus that asked for support (check inbox)
+        set independent false
       ]
-      [set mother_station -1]
-      set the_chosen_one 25
+      [
+        set mother_station -1
+      ]
+      
+      set leader 25
       set last_order_tick 0
       set going_in_service True
-      if the_chosen_one = bus_id
-      [set new_buses []
+      if leader = bus_id[
+        set new_buses []
         set pending_orders []
-        ]
+      ]
     ]
   
-  set companions lput bus_id []
+  ;set companions lput bus_id []
 end
   
 ;station connected to origin that is closer to the destination
@@ -86,9 +94,9 @@ end
 to travel-to-destination [origin destination]
   if origin != destination [
     ifelse is-connected origin destination [
-      travel-to destination
+      set next_stop destination
     ][
-      travel-to station-closer-to-destination origin destination
+      set next_stop station-closer-to-destination origin destination
     ]
   ]
 end
@@ -100,19 +108,16 @@ end
 to go-to-mother_station
   ifelse current_stop = mother_station [
     set going_in_service False
-  ][
-  ifelse not at-stop [
-    travel-to next_stop
-  ][
-  if not (current_stop = mother_station) [
-    travel-to-destination current_stop mother_station 
   ]
-  ]
+  [
+    if at-stop [
+      travel-to-destination current_stop mother_station
+    ]
   ]
 end
 
-to-report not-full 
-  report (bus_type = 1 and length bus_passengers != 12) or (bus_type = 2 and length bus_passengers != 60) or (bus_type = 3 and length bus_passengers != 150)
+to-report full 
+  report (bus_type = 1 and length bus_passengers = 12) or (bus_type = 2 and length bus_passengers = 60) or (bus_type = 3 and length bus_passengers = 150)
 end
  
 to drop-passengers ;drop all the passengers
@@ -156,13 +161,25 @@ to-report get-optimal-station
 end
 
 to pickup-passengers [station] ;pick up the passengers that will get a gain from going to that bus stop
+  let left_down 0
   foreach get-passengers-at-stop current_stop [
-    if not-full [ ; if the bus has spare places
-      if distance-shortened station ? [
-        pick-up-passenger item 0 ?
+    if distance-shortened station ? [ ;if the passenger gains something from the planned trip
+      ifelse not full [ 
+        pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
+      ]
+      [
+        set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
       ]
     ]
   ]
+  
+  if left_down > 0[
+    help-needed left_down
+  ]
+end
+
+to help-needed [left_down]
+  send-message (item 0 companions) lput left_down ["insufficient-capacity"]
 end
 
 to execute-actions
@@ -173,71 +190,58 @@ to execute-actions
   
     if ticks = 2 [
       let i 0
-      while [i <= 24 ] [
-        add-bus 2
+      ;let big_stations [0 3 13 16 22 23]
+      while [i < 24 ] [
+        ;ifelse member? i big_stations[
+          add-bus 3
+        ;][
+        ;  add-bus 2
+        ;]
         set i i + 1
       ]
       die
     ]
     
-    ifelse going_in_service[
-      go-to-mother_station
-    ]
-    [
-      if at-stop [
-        drop-passengers
+    if at-stop [
+      drop-passengers ;everytime you reach a stop you drop all passengers
+      ifelse going_in_service[ ; this part decides which will be the next_stop
+        go-to-mother_station
+      ]
+      [
+        if independent [ ;independent buses decide their mother_station based on where they are more needed (
+          if current_stop != mother_station[
+            if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
+              set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
+            ]
+          ]
+        ]
         
         ifelse current_stop = mother_station [
-          let best_station get-optimal-station
-          pickup-passengers best_station
-          set next_stop best_station
+          set next_stop get-optimal-station
         ]
         [
-          pickup-passengers mother_station
           set next_stop mother_station
         ]
       ]
-      if next_stop != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
-        travel-to next_stop
-      ]
-      
-      bus-needed? ; function that decides if a bus is needed and in which station
+      if next_stop != -1[ pickup-passengers next_stop ] ;if no one is waiting in the motherstation the bus don't pickup the air
     ]
+    
+    if next_stop != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
+      travel-to next_stop
+    ]
+
   ]
-end
-
-
-to bus-needed?
-  ; consider the number of passengers waiting in your mother_station
-  ; consider the number of expected passengers in your mother_station for the next tick
-  ; might count the soon to be dropped (communication yeeey)
-  ; count the number of buses already on that station
-  
-
-  
-  let threshold 150
-  
-  if last_order_tick < ticks - 5 and bus_id = (item 0 companions) and (length get-passengers-at-stop mother_station)/(length companions) > threshold
-  [ 
-    send-message the_chosen_one lput mother_station ["order"]
-    set last_order_tick ticks
-    ]
-  let m_s mother_station
-  let bus_here count buses with [mother_station = m_s] ;this also has to be done with communication (yey2)
-  ; if the count seems insufficent -> add-bus 
-;  if bus_count < buses-needed[
-;    ; add-bus
-;    ; send message to the new bus telling it the station to set as main
-;  ]
 end
 
 to handle-messages
   let ind 0
   let handled []
   let bus_counter count buses
+  let help_requests []
   
   while[ind < length inbox ]
   [
+    ;if not member? item ind inbox inbox_read [ ;TO BE ADDED so we ignore messagfes that were already read. (ludacris)
     let message item 2 item ind inbox
     let sender item 1 item ind inbox
     let msg_tick item 0 item ind inbox
@@ -247,52 +251,63 @@ to handle-messages
     if msg_type = "init"
     [
       set mother_station item 1 message
-      set companions item 2 message
-      ]
+      set independent true
+      ; set companions item 2 message
+      set handled lput (item ind inbox) handled
+    ]
+    
+    if msg_type = "redirect"
+    [
+      set mother_station item 1 message
+      set going_in_service true
+      set handled lput (item ind inbox) handled
+    ]
     
     if msg_type = "new-companion"
     [
       set companions lput (item 1 message) companions
       
-;      if bus_id = item 0 companions[
-;        foreach companions
-;        [
-;          if bus_id != ?
-;          [send-message ? lput (item 1 message) ["new-companion"]]
-;        ]
-;      ]
+      if bus_id = item 0 companions[
+        foreach companions
+        [
+          if bus_id != ?
+          [send-message ? lput (item 1 message) ["new-companion"]]
+        ]
       ]
+      set handled lput (item ind inbox) handled
+    ]
     
     if msg_type = "order"
     [
-      if bus_id = the_chosen_one
+      ifelse not member? (item ind inbox) pending_orders
       [
-        
-        ifelse not member? (item ind inbox) pending_orders
-        [
-          add-bus 3
-          let new_bus_id (bus_counter + 25)
-          set new_buses lput new_bus_id new_buses
-          set pending_orders lput (item ind inbox) pending_orders
-          set bus_counter (bus_counter + 1)
-        ]
-        [
-          
-          let sender_mother_station item 1 message
-          send-message (item 0 new_buses ) lput (lput item 0 companions []) lput sender_mother_station ["init"]
-          send-message sender lput (item 0 new_buses ) ["new-companion"]
-          
-          set pending_orders remove-item 0 pending_orders
-          set new_buses remove-item 0 new_buses
-          set handled lput (item ind inbox) handled
-        ]
-       ]
-     ]
-    
-    
-    if msg_type != "order"
-    [set handled lput (item ind inbox) handled
+        add-bus (item 2 message)
+        let new_bus_id (bus_counter + 25)
+        set new_buses lput new_bus_id new_buses
+        set pending_orders lput (item ind inbox) pending_orders
+        set bus_counter (bus_counter + 1)
       ]
+      [
+        let sender_mother_station item 1 message
+        send-message (item 0 new_buses ) lput companions lput sender_mother_station ["init"]
+        send-message sender lput (item 0 new_buses ) ["new-companion"]
+        
+        set pending_orders remove-item 0 pending_orders
+        set new_buses remove-item 0 new_buses
+        set handled lput (item ind inbox) handled
+      ]
+    ]
+    
+    if msg_type = "insufficient-capacity"[
+      ifelse (ticks - msg_tick) < 10[
+        set help_requests lput (item 1 message) help_requests
+      ]
+      [
+        set handled lput (item ind inbox) handled
+      ]
+    ]
+    
+    show inbox
     
 ;    foreach message
 ;    [
@@ -304,11 +319,49 @@ to handle-messages
 ;        set handled lput ind handled
 ;        ]
 ;      ]
+
     set ind (ind + 1)
-    ]
+  ]
+
+  foreach handled[ set inbox remove ? inbox ] ;set inbox_read lput ? inbox_read TO BE ADDED so we do not delete messages
   
-  foreach handled
+  if length help_requests > 0[ ;if there were help requests run the procedure to see if a new bus is needed
+    bus-needed? help_requests
+  ]
+  
+end
+
+to bus-needed? [help_requests]
+  let left_down 0
+  foreach help_requests[ set left_down (left_down + ?) ] ;how many couldn't be transported even though the bus wanted
+  let pas_wait (length get-passengers-at-stop mother_station) ;how many people are right now in the station
+  let comp_num (length companions) ;how many buses assigned to this stop
+  let full_buses (length help_requests) ;how many failed to load all passengers in need
+  
+  ;let kapacity 100
+  
+  ;if their combination
+  ifelse (left_down + pas_wait) > (comp_num - full_buses) * 200[
+    send-message leader lput 3 lput mother_station ["order"] ;send a message to order a new medium bus
+    clean-inbox-order ;when buying a new bus we clean all messages of insufficient-capacity
+  ]
   [
-    set inbox remove ? inbox
+    if (left_down + pas_wait) > (comp_num - full_buses) * 125[
+      send-message leader lput 2 lput mother_station ["order"] ;send a message to order a new big bus
+      clean-inbox-order
     ]
+  ]
+end
+
+to clean-inbox-order
+  let ind 0
+  let handled []
+  
+  while[ind < length inbox ] [
+    let msg_type item 0 item 2 item ind inbox
+    if msg_type = "insufficient-capacity"[ set handled lput (item ind inbox) handled ]
+    set ind (ind + 1)
+  ]
+  
+  foreach handled[ set inbox remove ? inbox ]
 end
