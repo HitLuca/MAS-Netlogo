@@ -27,6 +27,7 @@ buses-own [
   last_order_tick
   pending_orders
   asked_support
+  help_candidates
 ]
 
 ;hi!
@@ -60,6 +61,7 @@ to init-buses
           set i (i + 1)
         ]
         set independent_buses []
+        set help_candidates []
       ]
       [
         set mother_station -1
@@ -124,6 +126,12 @@ to go-to-mother_station
       travel-to-destination current_stop mother_station
     ]
   ]
+end
+
+to-report get-capacity
+  if bus_type = 1[report 12]
+  if bus_type = 2[report 60]
+  if bus_type = 3[report 150]
 end
 
 to-report full 
@@ -316,6 +324,31 @@ to handle-messages
       ]
     ]
     
+     
+    if msg_type = "ask-support"
+    [
+      let to_sender_station item 1 message
+      let from current_stop
+      if current_stop = -1
+      [
+        set from next_stop
+      ]
+      
+      let dist measure-distance from to_sender_station
+      
+      let free_seats (get-capacity - length bus_passengers)
+      
+      send-message sender lput free_seats lput dist ["info-support"]
+      ]
+    
+    if msg_type = "info-support"
+    [
+      let dist item 1 message
+      let free_seats item 1 message
+      set help_candidates lput (lput free_seats lput dist lput sender []) help_candidates
+      set handled lput (item ind inbox) handled
+    ]
+    
 ;    if msg_type = "insufficient-capacity"[
 ;      ifelse (ticks - msg_tick) < 10[
 ;        set help_requests lput (item 1 message) help_requests
@@ -349,7 +382,14 @@ to handle-messages
   
   if item 0 asked_support [
    if item 1 asked_support > ticks + 2 [
+     let preferences get-redirect-preferences
+     ifelse preferences = []
+     [
      send-message leader lput 3 lput mother_station ["order"]
+     ]
+     [
+       send-message (item 0 preferences) lput mother_station ["redirect"]
+       ]
      set asked_support [false]
    ] 
   ]
@@ -402,6 +442,12 @@ to clean-inbox-order
     if msg_type = "insufficient-capacity"[ set handled lput (item ind inbox) handled ]
     set ind (ind + 1)
   ]
+end
   
-  foreach handled[ set inbox remove ? inbox ]
+
+;returns list of independent buses in the order of preference or empty list if none are preferred (a new bus is to be created)
+to-report get-redirect-preferences
+  ;condition
+  
+  report independent_buses
 end
