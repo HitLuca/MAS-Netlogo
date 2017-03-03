@@ -30,6 +30,8 @@ buses-own [
   help_candidates
   last_support_ask_tick
   wait_for_redirect_answer
+  help_coming
+  wait_help_delay
 ]
 
 ;hi!
@@ -76,7 +78,9 @@ to init-buses
     set pending_orders []
   ]
   set wait_for_redirect_answer false
-  set asked_support [false]
+  set asked_support [false 0]
+  set help_coming false
+  set wait_help_delay 0
   ;set companions lput bus_id []
 end
   
@@ -280,8 +284,8 @@ to handle-messages
     [
       set mother_station item 1 message
       
-      if bus_id = 58 or bus_id = 53
-      [show mother_station]
+      
+;      show mother_station
       
       set independent true
       ; set companions item 2 message
@@ -293,6 +297,19 @@ to handle-messages
       set mother_station item 1 message
       set going_in_service true
       set handled lput (item ind inbox) handled
+      let dist_to_closest 0
+      
+      
+      let station current_stop
+      if current_stop = -1
+      [
+        ifelse previous_stop = -1
+        [set dist_to_closest  measure-distance 3 next_stop]
+        [set dist_to_closest  measure-distance 3 next_stop]
+        set station next_stop]
+      let dist dist_to_closest + measure-distance station mother_station
+      
+      send-message item mother_station fixed_buses lput dist ["confirm-redirect"]
     ]
     
     if msg_type = "ask-help"
@@ -314,6 +331,7 @@ to handle-messages
       [
         send-message leader lput 2 lput destination ["order"]
       ]
+      set handled lput (item ind inbox) handled
     ]
     
     if msg_type = "ask_redirect"
@@ -327,9 +345,10 @@ to handle-messages
     ]
     
     
-    if msg_type = "confirm_redirect"
+    if msg_type = "confirm-redirect"
     [
-      set help_candidates lput sender help_candidates
+      set wait_help_delay item 1 message
+;      set help_candidates lput sender help_candidates
       set handled lput (item ind inbox) handled
     ]
     
@@ -357,6 +376,7 @@ to handle-messages
       [
         add-bus (item 2 message)
         let new_bus_id (bus_counter + 25)
+        show new_bus_id
         set new_buses lput new_bus_id new_buses
         set pending_orders lput (item ind inbox) pending_orders
         set bus_counter (bus_counter + 1)
@@ -446,7 +466,7 @@ to handle-messages
         [
           send-message leader lput preferences lput mother_station ["ask-help"]
         ] 
-       set asked_support [false]
+       set asked_support [false 0]
     ]
   ]
   
@@ -474,15 +494,21 @@ to bus-needed? [help_requests]
 ;    ]
 ;  ]
 
-  if (left_down + pas_wait) > 200[
+  if (left_down + pas_wait) > 150 and (item 1 asked_support ) + ceiling wait_help_delay < ticks[
     ifelse length independent_buses = 0 [
       send-message leader lput 2 lput mother_station ["order"]
     ]
     [
-;      foreach independent_buses[
-;        send-message ? lput mother_station ["ask-support"]
-;      ]
+      if not item 0 asked_support
+      [
+        set help_candidates []
+        foreach independent_buses[
+          send-message ? lput mother_station ["ask-support"]
+        ]
+      ]
+      
       set asked_support lput ticks [true] ;saves that it has called for support and when ;in handle messages if this is set to true it checks the time, if in two ticks it didn't receive answer it orders a new bus and set it to false
+      
     ]
   ]
 
@@ -502,11 +528,11 @@ end
 ;returns list of independent buses in the order of preference or empty list if none are preferred (a new bus is to be created)
 to-report get-redirect-preferences
   ;set a trashold distance, to not call buses to far away
-  let d_treshold 15
+  let d_treshold 5
   set help_candidates sort-by [ item 1 ?1 < item 1 ?2 ] help_candidates
   
   let close_buses []
-  while [length close_buses < 5 and d_treshold <= 20] [
+  while [length close_buses < 3 and d_treshold <= 10] [
     set close_buses []
     foreach help_candidates [ if (item 1 ?) < d_treshold [ set close_buses lput ? close_buses ] ]
     set d_treshold (d_treshold + 5)
