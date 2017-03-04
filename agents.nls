@@ -28,10 +28,8 @@ buses-own [
   pending_orders
   asked_support
   help_candidates
-  last_support_ask_tick
-  wait_for_redirect_answer
-  help_coming
   wait_help_delay
+  help_distance_threshold
 ]
 
 ;hi!
@@ -77,10 +75,9 @@ to init-buses
     set new_buses []
     set pending_orders []
   ]
-  set wait_for_redirect_answer false
   set asked_support [false 0]
-  set help_coming false
   set wait_help_delay 0
+  set help_distance_threshold 10
   ;set companions lput bus_id []
 end
   
@@ -334,15 +331,15 @@ to handle-messages
       set handled lput (item ind inbox) handled
     ]
     
-    if msg_type = "ask_redirect"
-    [
-      if not taken
-      [
-        send-message sender ["confirm-redirect"]
-        set taken true
-      ]
-      set handled lput (item ind inbox) handled
-    ]
+;    if msg_type = "ask-redirect"
+;    [
+;      if not taken
+;      [
+;        send-message sender ["confirm-redirect"]
+;        set taken true
+;      ]
+;      set handled lput (item ind inbox) handled
+;    ]
     
     
     if msg_type = "confirm-redirect"
@@ -411,7 +408,10 @@ to handle-messages
         
         let free_seats (get-capacity - length bus_passengers)
         
-        send-message sender lput free_seats lput dist ["info-support"]
+        if dist <= help_distance_threshold
+        [
+          send-message sender lput free_seats lput dist ["info-support"]
+        ]
       ]
       set handled lput (item ind inbox) handled
     ]
@@ -532,7 +532,7 @@ to-report get-redirect-preferences
   set help_candidates sort-by [ item 1 ?1 < item 1 ?2 ] help_candidates
   
   let close_buses []
-  while [length close_buses < 3 and d_treshold <= 10] [
+  while [length close_buses < 3 and d_treshold <= help_distance_threshold] [
     set close_buses []
     foreach help_candidates [ if (item 1 ?) < d_treshold [ set close_buses lput ? close_buses ] ]
     set d_treshold (d_treshold + 5)
