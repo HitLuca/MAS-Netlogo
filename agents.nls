@@ -139,7 +139,7 @@ to-report get-capacity
 end
 
 to-report full 
-  report (bus_type = 1 and length bus_passengers = 12) or (bus_type = 2 and length bus_passengers = 60) or (bus_type = 3 and length bus_passengers = 150)
+  report (length bus_passengers = get-capacity)
 end
  
 to drop-passengers ;drop all the passengers
@@ -170,11 +170,11 @@ to-report get-optimal-station
       ]
     ]
     
-    ;to consider also how many people are on that station change k to a positive value
-    let k 0
     
+    let k 0
+    ;to consider also how many people are on that station change k to a positive value
     if independent
-    [set k 1]
+    [set k 0.5]
     
     set  g  g + k * length get-passengers-at-stop station
     
