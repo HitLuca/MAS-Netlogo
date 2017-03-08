@@ -823,10 +823,10 @@ days
 11
 
 BUTTON
-1097
-43
-1163
-76
+1096
+44
+1162
+77
 NIL
 go
 NIL
@@ -890,9 +890,9 @@ number_of_messages
 11
 
 PLOT
-1098
+1097
 327
-1412
+1411
 545
 Average Travel Time
 Ticks
@@ -909,9 +909,9 @@ PENS
 "pen-1" 1.0 0 -7500403 true "" ""
 
 PLOT
-1412
+1411
 327
-1726
+1725
 545
 Total Amount of Money Spent
 Ticks
@@ -927,9 +927,9 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot expenses"
 
 PLOT
-1100
+1097
 545
-1414
+1411
 763
 Total Number of Messages Sent
 Ticks
@@ -945,15 +945,33 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot number_of_messages"
 
 MONITOR
-1098
-196
-1338
-241
+1097
+194
+1336
+239
 Average Travel Time
 final_average_travelling_time
 2
 1
 11
+
+PLOT
+1411
+545
+1725
+763
+Waiting passengers
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot amount_passengers_waiting"
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -1,0 +1,73 @@
+;loads the distances matrix in memory
+to-report load-distances
+  file-open "data/distances.txt"
+  let distances_matrix file-read
+  file-close
+  report distances_matrix
+end
+
+;station connected to origin that is closer to the destination
+to-report station-closer-to-destination [origin destination]
+  let minimum_distance measure-distance origin destination
+  let nearest_station origin
+  
+  let adjacent_stations item origin graph
+  foreach adjacent_stations [
+    let new_distance measure-distance ? destination
+    if new_distance < minimum_distance [
+      set minimum_distance new_distance
+      set nearest_station ?
+    ]
+  ]
+  report nearest_station
+end
+
+;checks if two stations are directly connected or not
+to-report is-connected [origin destination]
+  ifelse member? destination item origin graph [
+    report True
+  ]
+  [
+    report False
+  ]
+end
+
+;returns the optimal station to move given the loaded passengers destinations
+to-report get-optimal-station
+  let best_station (- 1)
+  let best_gain 0
+  foreach item mother_station graph[ ;for each connected station
+    let g 0
+    let station ?
+    foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
+      if distance-shortened station ? [
+        set g (g + 1)
+      ]
+    ]
+    
+    
+    let k 0
+    ;to consider also how many people are on that station change k to a positive value
+    if independent [set k 0.5]
+    
+    set  g  g + k * length get-passengers-at-stop station
+    
+    if  g > best_gain[
+      set best_gain  g
+      set best_station station
+    ]
+  ]
+  report best_station
+end
+
+;returns the minimum distance between two stations
+to-report measure-distance [station0 station1]
+  report item station0 item station1 distance_matrix
+end
+
+;returns the minimum distance if a passenger would be moved to the given station
+to-report distance-shortened [station passenger]
+  let distance0 measure-distance current_stop item 1 passenger
+  let distance1 measure-distance station item 1 passenger
+  report distance1 < distance0
+end

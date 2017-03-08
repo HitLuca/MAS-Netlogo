@@ -1,3 +1,5 @@
+__includes["support_files/messages.nls" "support_files/distances_calculations.nls" "support_files/passengers_calculations.nls"]
+
 buses-own [
   ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
   bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
@@ -13,10 +15,12 @@ buses-own [
   ; New local variables for students.
   ; You can create any new local variable you want. Just declare them here.
   distance_matrix
+  passengers_matrix
   mother_station
   going_in_service
   
   independent
+  
   ;companions
   
   leader
@@ -32,18 +36,9 @@ buses-own [
   help_distance_threshold
 ]
 
-;hi!
- 
 globals [graph]
 
-;loads the distances matrix in memory
-to-report load-distances
-  file-open "distances.txt"
-  let distances_matrix file-read
-  file-close
-  report distances_matrix
-end
-
+;initialization of the buses
 to init-buses
   if graph = 0 [
     set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
@@ -53,6 +48,7 @@ to init-buses
   set fixed_buses []
   set independent_buses []
   set distance_matrix load-distances
+  set passengers_matrix load-passengers
   ifelse bus_id < 49[
     set mother_station (bus_id - 25) ; mod 24; to the one of the bus that asked for support (check inbox)
     set independent false
@@ -84,145 +80,11 @@ to init-buses
   set help_distance_threshold 10
   ;set companions lput bus_id []
 end
-  
-;station connected to origin that is closer to the destination
-to-report station-closer-to-destination [origin destination]
-  let minimum_distance measure-distance origin destination
-  let nearest_station origin
-  
-  let adjacent_stations item origin graph
-  foreach adjacent_stations [
-    let new_distance measure-distance ? destination
-    if new_distance < minimum_distance [
-      set minimum_distance new_distance
-      set nearest_station ?
-    ]
-  ]
-  report nearest_station
-end
-  
 
-
-to-report is-connected [origin destination]
-  ifelse member? destination item origin graph [
-    report True
-  ]
-  [
-    report False
-  ]
-end
-
-to travel-to-destination [origin destination]
-  if origin != destination [
-    ifelse is-connected origin destination [
-      set next_stop destination
-    ]
-    [
-      set next_stop station-closer-to-destination origin destination
-    ]
-  ]
-end
-
-to-report at-stop 
-  report current_stop != -1
-end
-
-to go-to-mother_station
-  ifelse current_stop = mother_station [
-    set going_in_service False
-    set next_stop -1
-  ]
-  [
-    if at-stop [
-      travel-to-destination current_stop mother_station
-    ]
-  ]
-end
-
-to-report get-capacity
-  if bus_type = 1[report 12]
-  if bus_type = 2[report 60]
-  if bus_type = 3[report 150]
-end
-
-to-report full 
-  report (length bus_passengers = get-capacity)
-end
- 
-to drop-passengers ;drop all the passengers
-  foreach bus_passengers [
-    drop-off-passenger item 0 ?
-  ]
-end
-
-to-report measure-distance [station0 station1]
-  report item station0 item station1 distance_matrix
-end
-
-to-report distance-shortened [station passenger]
-  let distance0 measure-distance current_stop item 1 passenger
-  let distance1 measure-distance station item 1 passenger
-  report distance1 < distance0
-end
-
-to-report get-optimal-station
-  let best_station (- 1)
-  let best_gain 0
-  foreach item mother_station graph[ ;for each connected station
-    let g 0
-    let station ?
-    foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
-      if distance-shortened station ? [
-        set g (g + 1)
-      ]
-    ]
-    
-    
-    let k 0
-    ;to consider also how many people are on that station change k to a positive value
-    if independent [set k 0.5]
-    
-    set  g  g + k * length get-passengers-at-stop station
-    
-    if  g > best_gain[
-      set best_gain  g
-      set best_station station
-    ]
-  ]
-  report best_station
-end
-
-to pickup-passengers [station] ;pick up the passengers that will get a gain from going to that bus stop
-  let left_down 0
-  foreach get-passengers-at-stop current_stop [
-    if distance-shortened station ? [ ;if the passenger gains something from the planned trip
-      ifelse not full [ 
-        pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
-      ]
-      [
-        set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
-      ]
-    ]
-  ]
-  
-  if not independent and left_down > 0[
-    ;help-needed left_down
-    bus-needed? lput left_down []
-  ]
-end
-
-to help-needed [left_down]
-  let companions []
-  foreach fixed_buses[ ;creates on the fly the list of companions based on the list of fixed buses and their mother_station
-    if item 1 ? = mother_station[
-      set companions lput item 0 ? companions
-    ]
-  ]
-  send-message item 0 (sort companions) lput left_down ["insufficient-capacity"]
-end
-
+;--------------------------------------------------------;
+;--------------------MAIN ROUTINE------------------------;
+;--------------------------------------------------------;
 to execute-actions
-  
   if bus_id = 24 and ticks = 2 [
     let i 0
     ;let node_stations [0 3 13 16 22 23 ...] ; this are the main nodes of the graph, the ones that have a fixed bus
@@ -268,205 +130,87 @@ to execute-actions
   ]
 end
 
-to handle-messages
-  let ind 0
-  let handled []
-  let bus_counter length fixed_buses + length independent_buses
-  let help_requests []
-  let taken false
-  let taken_buses []
-  
-  while[ind < length inbox ][
-    ;if not member? item ind inbox inbox_read [ ;TO BE ADDED so we ignore messagfes that were already read. (ludacris)
-    let message item 2 item ind inbox
-    let sender item 1 item ind inbox
-    let msg_tick item 0 item ind inbox
-    let msg_type item 0 message
-    
-    
-    if msg_type = "init"[
-      set independent true
-      set mother_station item 1 message
-      set fixed_buses item 2 message
-      set independent_buses item 3 message
-      set handled lput (item ind inbox) handled
+;makes the bus move from origin to destination following the shortest path
+to travel-to-destination [origin destination]
+  if origin != destination [
+    ifelse is-connected origin destination [
+      set next_stop destination
     ]
-    
-    if msg_type = "redirect"[
-      set mother_station item 1 message
-      set going_in_service true
-      set handled lput (item ind inbox) handled
-      let dist_to_closest 0
-      
-      
-      let station current_stop
-      if current_stop = -1[
-        ifelse previous_stop = -1
-        [set dist_to_closest  measure-distance 3 next_stop]
-        [set dist_to_closest  measure-distance 3 next_stop]
-        set station next_stop]
-      let dist dist_to_closest + measure-distance station mother_station
-      
-      send-message (item 0 (item mother_station fixed_buses)) lput dist ["confirm-redirect"]
-    ]
-    
-    if msg_type = "ask-help"[
-      let destination item 1 message
-      let preferences item 2 message
-      
-      let i 0
-      while[i < length preferences and member? (item i preferences) taken_buses]
-      [
-        set i i + 1
-      ]
-      
-      ifelse i < length preferences
-      [
-        send-message  (item i preferences) lput destination ["redirect"]
-        set taken_buses lput (item i preferences) taken_buses
-      ]
-      [
-        send-message leader lput 2 lput destination ["order"]
-      ]
-      set handled lput (item ind inbox) handled
-    ]
-    
-;    if msg_type = "ask-redirect"
-;    [
-;      if not taken
-;      [
-;        send-message sender ["confirm-redirect"]
-;        set taken true
-;      ]
-;      set handled lput (item ind inbox) handled
-;    ]
-    
-    
-    if msg_type = "confirm-redirect"[
-      set wait_help_delay item 1 message
-;      set help_candidates lput sender help_candidates
-      set handled lput (item ind inbox) handled
-    ]
-
-    if msg_type = "new-independent"[
-      set independent_buses lput (item 1 message) independent_buses
-      set handled lput (item ind inbox) handled
-    ]
-    
-    if msg_type = "new-fixed"[
-      let new_f lput (item 1 message) lput sender []
-      set fixed_buses lput new_f fixed_buses
-      set independent_buses remove sender independent_buses
-      
-      set handled lput (item ind inbox) handled
-    ]
-        
-    if msg_type = "order"[
-      ifelse not member? (item ind inbox) pending_orders
-      [
-        add-bus (item 2 message)
-        let new_bus_id (bus_counter + 25)
-;        show new_bus_id
-        set new_buses lput new_bus_id new_buses
-        set pending_orders lput (item ind inbox) pending_orders
-        set bus_counter (bus_counter + 1)
-      ]
-      [
-        let sender_mother_station item 1 message
-        send-message (item 0 new_buses ) lput independent_buses lput fixed_buses lput sender_mother_station ["init"]
-        ;send-message sender lput (item 0 new_buses ) ["new-companion"]
-        
-        set independent_buses lput (item 0 new_buses) independent_buses
-        foreach fixed_buses[
-          let id item 0 ?
-          if not (id = bus_id)[
-            send-message id lput (item 0 new_buses ) ["new-independent"]
-          ]; let everyone know there's a new independent bus and its ID
-        ]
-        
-        set pending_orders remove-item 0 pending_orders
-        set new_buses remove item 0 new_buses new_buses
-        set handled lput (item ind inbox) handled
-      ]
-    ]
-    
-    if msg_type = "ask-support"[
-      if not going_in_service[
-        let to_sender_station item 1 message
-        let from current_stop
-        if current_stop = -1[
-          set from next_stop
-        ]
-        
-        let dist measure-distance from to_sender_station
-        
-        let free_seats (get-capacity - length bus_passengers)
-        
-        if dist <= help_distance_threshold
-        [
-          send-message sender lput free_seats lput dist ["info-support"]
-        ]
-      ]
-      set handled lput (item ind inbox) handled
-    ]
-    
-    if msg_type = "info-support"[
-      let dist item 1 message
-      let free_seats item 2 message
-      set help_candidates lput (lput free_seats lput dist lput sender []) help_candidates
-      
-      set handled lput (item ind inbox) handled
-    ]
-    
-    if msg_type = "insufficient-capacity"[ ;recived only by the leder of the station, sent also by itself (could work around it, for sure)
-      ifelse (ticks - msg_tick) < 10[
-        set help_requests lput (item 1 message) help_requests
-      ]
-      [
-        set handled lput (item ind inbox) handled
-      ]
-    ]
-    
-
-    
-;    foreach message
-;    [
-;      let submessage ?
-;      let msg_type item 0 submessage
-;      if msg_type = "init"
-;      [
-;        set mother_station item 1 submessage
-;        set handled lput ind handled
-;        ]
-;      ]
-
-    set ind (ind + 1)
-  ]
-  
-  if length inbox > 0 [ show inbox ]
-      
-  foreach handled[ set inbox remove ? inbox ] ;set inbox_read lput ? inbox_read TO BE ADDED so we do not delete messages
-  
-  if length help_requests > 0[ ;if there were help requests run the procedure to see if a new bus is needed
-    bus-needed? help_requests
-  ]
-  
-  if item 0 asked_support [
-    if item 1 asked_support + 2 < ticks [
-      let preferences get-redirect-preferences
-      ifelse preferences = [][
-        send-message leader lput 2 lput mother_station ["order"]
-      ]
-      [
-        send-message leader lput preferences lput mother_station ["ask-help"]
-      ]
-       set asked_support [false 0]
+    [
+      set next_stop station-closer-to-destination origin destination
     ]
   ]
-  
-  
 end
 
+;checks if a bus is stopped at a station or if it's moving
+to-report at-stop 
+  report current_stop != -1
+end
+
+;sends a new bus to its mother station
+to go-to-mother_station
+  ifelse current_stop = mother_station [
+    set going_in_service False
+    set next_stop -1
+  ]
+  [
+    if at-stop [
+      travel-to-destination current_stop mother_station
+    ]
+  ]
+end
+
+;returns the capacity of the given bus
+to-report get-capacity
+  if bus_type = 1[report 12]
+  if bus_type = 2[report 60]
+  if bus_type = 3[report 150]
+end
+
+;checks if the bus is full
+to-report full 
+  report (length bus_passengers = get-capacity)
+end
+ 
+;drops all the passengers
+to drop-passengers
+  foreach bus_passengers [
+    drop-off-passenger item 0 ?
+  ]
+end
+
+;pick up the passengers that will get a gain from going to that bus stop
+to pickup-passengers [station]
+  let left_down 0
+  foreach get-passengers-at-stop current_stop [
+    if distance-shortened station ? [ ;if the passenger gains something from the planned trip
+      ifelse not full [ 
+        pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
+      ]
+      [
+        set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
+      ]
+    ]
+  ]
+  
+  if not independent and left_down > 0[
+    ;help-needed left_down
+    bus-needed? lput left_down []
+  ]
+end
+
+;sends a help message to the companion buses
+to help-needed [left_down]
+  let companions []
+  foreach fixed_buses[ ;creates on the fly the list of companions based on the list of fixed buses and their mother_station
+    if item 1 ? = mother_station[
+      set companions lput item 0 ? companions
+    ]
+  ]
+  send-message item 0 (sort companions) lput left_down ["insufficient-capacity"]
+end
+
+;checks if a new bus needs to be bought or not
 to bus-needed? [help_requests]
   let left_down 0
   foreach help_requests[ set left_down (left_down + ?) ] ;how many couldn't be transported even though the bus wanted
@@ -506,18 +250,7 @@ to bus-needed? [help_requests]
   ]
 end
   
-to clean-inbox-order
-  let ind 0
-  let handled []
-  
-  while[ind < length inbox ] [
-    let msg_type item 0 item 2 item ind inbox
-    if msg_type = "insufficient-capacity"[ set handled lput (item ind inbox) handled ]
-    set ind (ind + 1)
-  ]
-end
-  
-;returns list of independent buses in the order of preference or empty list if none are preferred (a new bus is to be created)
+;returns a list of independent buses in the order of preference or empty list if none are preferred (a new bus is to be created)
 to-report get-redirect-preferences
   let close_buses []
   let d_treshold 5 ;set a trashold distance, to not call buses to far away

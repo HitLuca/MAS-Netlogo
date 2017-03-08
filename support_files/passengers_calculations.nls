@@ -1,0 +1,30 @@
+;loads the passengers prior in memory
+to-report load-passengers
+  file-open "data/passengers.txt"
+  let passenger_matrix file-read
+  file-close
+  report passenger_matrix
+end
+
+;returns the current time in minutes
+to-report get-time-minutes
+  report hours * 60 + minutes 
+end
+
+;returns the index for the passengers_distances matrix, where every 15 minutes there is an increase of 1
+to-report minutes-to-index [input_minutes]
+  let input_hours floor(input_minutes / 60)
+  let remaining_minutes input_minutes - input_hours * 60
+  report input_hours * 4 + floor(remaining_minutes / 15)
+end
+
+;returns the number of predicted passengers at the given station at given timestep
+to-report get-passengers-prediction [station index]
+  report item index item station passengers_matrix
+end
+
+;returns the number of predicted passengers at the given station at the next 15 minutes mark
+to-report get-passengers-next-quarter [station]
+  let index minutes-to-index get-time-minutes + 1
+  report get-passengers-prediction station index
+end
