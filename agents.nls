@@ -120,20 +120,20 @@ to execute-actions
       ]
       [
         ;buses decide their mother_station based on where they are more needed (
-        if current_stop != mother_station[
-          ;TODO this protocolo has to be improved and also consider other buses destinations and the prior
-          if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
-            set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
-          ]
-        ]
-        
-        
-        ifelse current_stop = mother_station [
+;        if current_stop != mother_station[
+;          ;TODO this protocolo has to be improved and also consider other buses destinations and the prior
+;          if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
+;            set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
+;          ]
+;        ]
+;        
+;        
+;        ifelse current_stop = mother_station [
           set next_stop get-optimal-station
-        ]
-        [
-          set next_stop mother_station
-        ]
+;        ]
+;        [
+;          set next_stop mother_station
+;        ]
       ]
       if next_stop != -1[ pickup-passengers next_stop ] ;if no one is waiting in the motherstation the bus don't pickup the air
     ]
