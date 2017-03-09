@@ -239,7 +239,7 @@ to call-vote [left_down station]
     send-message (i + 23) lput left_down lput station ["ask-vote"]
     set i (i + 1)
   ]
-  set asked_support lput ticks [true]
+  set asked_support lput ticks [true 0]
 end
 
 to-report buses-converging [station]

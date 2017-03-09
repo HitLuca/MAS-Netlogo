@@ -52,14 +52,15 @@ to-report get-optimal-station
     let prior get-passengers-next-quarter station
     
     
-    let  gain  passengers_gain + (0.5 * waiting_passengers) + (0.3 * prior) - (bus_count_for_stop * 50)
+    let  gain  10 * efficiency_rate + 0.5 * waiting_passengers - 50 * bus_count_for_stop + 0.3 * prior
     
     if  gain > best_gain[
-      set best_e efficiency_rate
       set best_gain  gain      
       set best_station station
     ]
   ]
+  
+  
   report best_station
 end
 

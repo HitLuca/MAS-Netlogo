@@ -15,6 +15,14 @@ to handle-messages
   let ind 0
   let handled []  
   
+  
+;  if leader = bus_id
+;  [
+;    foreach station_beliefs[
+;      set bus_counter bus_counter + length ?
+;    ]
+;  ]
+  
   let help_requests []
   let taken false
   let taken_buses []
