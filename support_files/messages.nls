@@ -204,11 +204,13 @@ to handle-messages
 
     set ind (ind + 1)
     
-    if (positive_votes + negative_votes) = 0 or positive_votes / (positive_votes + negative_votes) > 0.5
+
+  ]
+  
+  if item 0 asked_support and (positive_votes - negative_votes) >= 0
     [
       send-message leader lput 2 lput mother_station ["order"]
-      ]
-  ]
+    ]
   
   if length inbox > 0 [ show inbox ]
       
