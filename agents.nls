@@ -19,17 +19,20 @@ buses-own [
   mother_station
   going_in_service
   
-  independent
-  
+  ;independent
+  station_beliefs
+  bus_count
   ;companions
   
   leader
-  fixed_buses
-  independent_buses
   new_buses
+  
+  vote_distance_threshold
+  faction
   
   last_order_tick
   pending_orders
+  
   asked_support
   help_candidates
   wait_help_delay
@@ -45,40 +48,52 @@ to init-buses
   ]
   
   ; Initialize your agents here.
-  set fixed_buses []
-  set independent_buses []
+  
   set distance_matrix load-distances
   set passengers_matrix load-passengers
+  
+  
+  set station_beliefs []
+  let i 0
+  while [i < 24] [
+    set station_beliefs lput [] station_beliefs
+    set i (i + 1)
+  ]
+  
   ifelse bus_id < 49[
     set mother_station (bus_id - 25) ; mod 24; to the one of the bus that asked for support (check inbox)
-    set independent false
-    
-    let i 25
-    let f_b []
-    while [i < 49] [
-      set f_b lput (i - 25) lput i [] ;a list of pairs, first element is the bus_id, second the mother_station
-      set fixed_buses lput f_b fixed_buses
-      set i (i + 1)
-    ]
+    set bus_count 25
     set help_candidates []
   ]
   [
     set mother_station -1
   ]
   
-  ;set independent (mother_station = -1)
+  set leader 24
   
-  set leader 25
   set last_order_tick 0
   set going_in_service True
+  
   if leader = bus_id[
     set new_buses []
     set pending_orders []
   ]
+  
+  set vote_distance_threshold 10
+  
+  ifelse random 3 = 0[ ;buses can be cheap or fast, randomly assigned with different probabilities (1/3 and 2/3)
+    set faction "cheap"
+    ;less prone to buy or vote in favour of new buses, they care more about economic efficiency
+  ]
+  [
+    set faction "fast"
+    ;more interested in bringing people around faster, they are more likely to order and vote for new buses
+  ]
+  
   set asked_support [false 0]
   set wait_help_delay 0
   set help_distance_threshold 10
-  ;set companions lput bus_id []
+
 end
 
 ;--------------------------------------------------------;
@@ -92,27 +107,26 @@ to execute-actions
       add-bus 3
       set i i + 1
     ]
-    ;die
-    set independent true
     set mother_station 3
   ]
   
   handle-messages
   
-  if mother_station != -1[  
+  if mother_station != -1[
     if at-stop [
       drop-passengers ;everytime you reach a stop you drop all passengers
       ifelse going_in_service[ ; this part decides which will be the next_stop
         go-to-mother_station
       ]
       [
-        if independent [ ;independent buses decide their mother_station based on where they are more needed (
-          if current_stop != mother_station[
-            if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
-              set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
-            ]
+        ;buses decide their mother_station based on where they are more needed (
+        if current_stop != mother_station[
+          ;TODO this protocolo has to be improved and also consider other buses destinations and the prior
+          if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
+            set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
           ]
         ]
+        
         
         ifelse current_stop = mother_station [
           set next_stop get-optimal-station
@@ -193,76 +207,44 @@ to pickup-passengers [station]
     ]
   ]
   
-  if not independent and left_down > 0[
-    ;help-needed left_down
-    bus-needed? lput left_down []
+  if (bus-needed? left_down current_stop) and (not item 0 asked_support) [
+    call-vote left_down current_stop
   ]
-end
-
-;sends a help message to the companion buses
-to help-needed [left_down]
-  let companions []
-  foreach fixed_buses[ ;creates on the fly the list of companions based on the list of fixed buses and their mother_station
-    if item 1 ? = mother_station[
-      set companions lput item 0 ? companions
-    ]
-  ]
-  send-message item 0 (sort companions) lput left_down ["insufficient-capacity"]
+  
 end
 
 ;checks if a new bus needs to be bought or not
-to bus-needed? [help_requests]
-  let left_down 0
-  foreach help_requests[ set left_down (left_down + ?) ] ;how many couldn't be transported even though the bus wanted
-  let pas_wait (length get-passengers-at-stop mother_station) ;how many people are right now in the station
-  let comp_num 1 ; for now there is only one fixed bus for each stop
-  ;let comp_num (length companions) ;how many buses assigned to this stop
-  let full_buses (length help_requests) ;how many failed to load all passengers in need
+to-report bus-needed? [left_down station]
+  let pas_wait (length get-passengers-at-stop station) ;how many people are right now in the station
+  let bus_coming buses-converging station ; for now there is only one fixed bus for each stop
+  let passengers_expected get-passengers-next-quarter station
   
-  ;let kapacity 100
+  let threshold 0
   
-;  ifelse (left_down + pas_wait) > (comp_num - full_buses + 1) * 200[ ;with the addition of one big bus, will we still have passengers waiting?
-;    send-message leader lput 3 lput mother_station ["order"] ;send a message to order a new medium bus
-;    clean-inbox-order ;when buying a new bus we clean all messages of insufficient-capacity
-;  ]
-;  [
-;    if (left_down + pas_wait) > (comp_num - full_buses + 1) * 125[ ;with the addition of one mediumg bus, will we still have passengers waiting?
-;      send-message leader lput 2 lput mother_station ["order"] ;send a message to order a new big bus
-;      clean-inbox-order
-;    ]
-;  ]
-
-  if (left_down + pas_wait) > 150 and (item 1 asked_support ) + ceiling wait_help_delay < ticks[
-    ifelse length independent_buses = 0 [
-      send-message leader lput 2 lput mother_station ["order"]
-    ]
-    [
-      if not item 0 asked_support[
-        set help_candidates []
-        foreach independent_buses[
-          send-message ? lput mother_station ["ask-support"]
-        ]
-      ]
-      
-      set asked_support lput ticks [true] ;saves that it has called for support and when ;in handle messages if this is set to true it checks the time, if in two ticks it didn't receive answer it orders a new bus and set it to false
-      
-    ]
+  ifelse faction = "fast"[
+    set threshold 150
   ]
-end
-  
-;returns a list of independent buses in the order of preference or empty list if none are preferred (a new bus is to be created)
-to-report get-redirect-preferences
-  let close_buses []
-  let d_treshold 5 ;set a trashold distance, to not call buses to far away
-  while [length close_buses < 2 and d_treshold <= help_distance_threshold] [
-    set close_buses []
-    foreach help_candidates [ if (item 1 ?) < d_treshold [ set close_buses lput ? close_buses ] ] ;select only the buses closer then the distance threshold
-    set d_treshold (d_treshold + 2) ;if we don't find enough buses under a certain distance we try with a bigger one
+  [
+    set threshold 250
   ]
-  set close_buses sort-by [ item 1 ?1 > item 1 ?2 ] close_buses ;for the same capacity the closest is chosen
-  report map [ item 0 ? ] sort-by [ item 2 ?1 > item 2 ?2 ] close_buses ; this needs to be refined, it has to consider also distance. Often we have the capacity to 0
+  
+  let need (left_down + pas_wait + passengers_expected - bus_coming * 100)
+  
+  report (need > threshold) 
 end
 
+to call-vote [left_down station]
+  let i 1
+  while [ i < bus_count ] [
+    send-message (i + 23) lput left_down lput station ["ask-vote"]
+    set i (i + 1)
+  ]
+  set asked_support lput ticks [true]
+end
+
+to-report buses-converging [station]
+  report length item station station_beliefs
+end
 
 
 
