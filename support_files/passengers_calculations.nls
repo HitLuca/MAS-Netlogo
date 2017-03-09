@@ -20,7 +20,15 @@ end
 
 ;returns the number of predicted passengers at the given station at given timestep
 to-report get-passengers-prediction [station index]
-  report item index item station passengers_matrix
+  let priors (item station passengers_matrix)
+  
+  ifelse index < length priors
+  [
+    report item index item station passengers_matrix
+  ]
+  [
+    report 0
+  ]
 end
 
 ;returns the number of predicted passengers at the given station at the next 15 minutes mark

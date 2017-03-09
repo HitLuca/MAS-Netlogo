@@ -169,7 +169,17 @@ to handle-messages
       let sender_current_stop item 1 message
       let sender_left_down item 2 message
       
-      let dist get-distance sender_current_stop mother_station
+      let selected_station current_stop
+      if selected_station = -1
+      [set selected_station next_stop]
+      
+      let selected_stop current_stop
+      if selected_stop = -1
+      [
+        set selected_stop next_stop
+        ]
+      
+      let dist measure-distance sender_current_stop selected_stop
       if dist <= 20
       [
         let vote (bus-needed? sender_left_down sender_current_stop)
