@@ -36,7 +36,7 @@ end
 to-report get-optimal-station
   let best_station (- 1)
   let best_gain 0
-  foreach item mother_station graph[ ;for each connected station
+  foreach item current_stop graph[ ;for each connected station
     let passengers_gain 0
     let station ?
     foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
@@ -47,12 +47,12 @@ to-report get-optimal-station
     
     let waiting_passengers length get-passengers-at-stop station
     let bus_count_for_stop length item station station_beliefs
-    let station_distance get-distance mother_station station
+    let station_distance get-distance current_stop station
     let efficiency_rate passengers_gain / station_distance
     let prior get-passengers-next-quarter station
     
     
-    let  gain  efficiency_rate + 0.5 * waiting_passengers + bus_count_for_stop + 0.3 * prior
+    let  gain  passengers_gain + (0.5 * waiting_passengers) + (0.3 * prior) - (bus_count_for_stop * 50)
     
     if  gain > best_gain[
       set best_gain  gain
