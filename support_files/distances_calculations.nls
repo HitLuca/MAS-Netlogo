@@ -37,30 +37,14 @@ to-report get-optimal-station
   let best_station (- 1)
   let best_gain 0
   foreach item current_stop graph[ ;for each connected station
-    let passengers_gain 0
     let station ?
-    foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
-      if distance-shortened station ? [
-        set passengers_gain (passengers_gain + 1)
-      ]
-    ]
-    
-    let waiting_passengers length get-passengers-at-stop station
-    let bus_count_for_stop length item station station_beliefs
-    let station_distance get-distance current_stop station
-    let efficiency_rate passengers_gain / station_distance
-    let prior get-passengers-next-quarter station
-    
-    
-    let  gain  10 * efficiency_rate + 0.5 * waiting_passengers - 50 * bus_count_for_stop + 0.3 * prior
+    let gain get-gain station
     
     if  gain > best_gain[
       set best_gain  gain      
       set best_station station
     ]
   ]
-  
-  
   report best_station
 end
 
@@ -74,4 +58,76 @@ to-report distance-shortened [station passenger]
   let distance0 measure-distance current_stop item 1 passenger
   let distance1 measure-distance station item 1 passenger
   report distance1 < distance0
+end
+
+to-report consider-migration
+  let i 0
+  let best_gain 0
+  let destination (- 1)
+  while [ i < 24 ] [
+    let gain get-gain i
+    if  gain > best_gain[
+      set best_gain  gain
+      set destination i
+    ]
+    set i (i + 1)
+  ]
+  
+  ifelse destination != (- 1)[
+    set mother_station destination
+    set going_in_service true
+    report true
+  ]
+  [
+    report false
+  ]
+end
+
+to-report get-gain [station]
+  ;gain parameters calculation
+  let passengers_gain 0
+  foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
+    if distance-shortened station ? [
+      set passengers_gain (passengers_gain + 1)
+    ]
+  ]
+;  if passengers_gain != 0 [
+;    set passengers_gain passengers_gain / length get-passengers-at-stop current_stop
+;  ]
+  
+  let waiting_passengers length get-passengers-at-stop station
+  let bus_count_for_stop length item station station_beliefs
+  let prior get-passengers-next-quarter station
+
+;  let waiting_passengers_denominator 0
+;  let bus_count_for_stop_denominator 0
+;  let prior_denominator 0
+;  foreach item current_stop graph[
+;    if waiting_passengers != 0 [
+;      set waiting_passengers_denominator waiting_passengers_denominator + length get-passengers-at-stop ?
+;    ]
+;    if bus_count_for_stop != 0 [
+;      set bus_count_for_stop_denominator bus_count_for_stop_denominator + length item ? station_beliefs
+;    ]
+;    if prior != 0 [
+;      set prior_denominator prior_denominator + get-passengers-next-quarter ?
+;    ]
+;  ]
+;  
+;  if waiting_passengers_denominator != 0 [
+;  set waiting_passengers waiting_passengers / waiting_passengers_denominator
+;  ]
+;  if bus_count_for_stop_denominator != 0 [
+;  set bus_count_for_stop bus_count_for_stop / bus_count_for_stop_denominator
+;  ]
+;  if prior_denominator != 0 [
+;  set prior prior / prior_denominator
+;  ]
+  
+  ;let station_distance get-distance current_stop station
+  ;let efficiency_rate passengers_gain / station_distance
+  
+  let  gain  (1 * passengers_gain) + (0.5 * waiting_passengers) + (0.5 * prior) - (50 * bus_count_for_stop)
+  
+  report gain
 end

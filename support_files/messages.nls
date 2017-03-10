@@ -1,39 +1,28 @@
 ;cleans the bus inbox
-to clean-inbox-order
-  let ind 0
-  let handled []
-  
-  while[ind < length inbox ] [
-    let msg_type item 0 item 2 item ind inbox
-    if msg_type = "insufficient-capacity"[ set handled lput (item ind inbox) handled ]
-    set ind (ind + 1)
-  ]
-end
+;to clean-inbox-order
+;  foreach inbox [
+;    let msg_type item 0 item 2 ?
+;    if msg_type = "insufficient-capacity"[ set handled lput ? handled ]
+;  ]
+;  foreach handled[ set inbox remove ? inbox ]
+;end
 
 ;message handling routine
 to handle-messages
-  let ind 0
-  let handled []  
+  let handled []
   
-  
-;  if leader = bus_id
-;  [
-;    foreach station_beliefs[
-;      set bus_counter bus_counter + length ?
-;    ]
-;  ]
-  
-  let help_requests []
-  let taken false
-  let taken_buses []
+  ;let help_requests []
+  ;let taken false
+  ;let taken_buses []
   let positive_votes 0
   let negative_votes 0
-  
-  while[ind < length inbox ][
+
+  foreach inbox[  
+;  while[ind < length inbox ][
     ;if not member? item ind inbox inbox_read [ ;TO BE ADDED so we ignore messagfes that were already read. (ludacris)
-    let message item 2 item ind inbox
-    let sender item 1 item ind inbox
-    let msg_tick item 0 item ind inbox
+    let message item 2 ? ;item ind inbox
+    let sender item 1 ? ;item ind inbox
+    let msg_tick item 0 ? ;item ind inbox
     let msg_type item 0 message
        
 ;    if msg_type = "redirect"[
@@ -123,30 +112,30 @@ to handle-messages
     if msg_type = "init"[
       set mother_station item 1 message
       set bus_count item 2 message
-      set handled lput (item ind inbox) handled
+      set station_beliefs item 3 message
+      set handled lput ? handled ; (item ind inbox) handled
     ]
-
+    
     if msg_type = "new-bus"[
       set bus_count (bus_count + 1)
-      set handled lput (item ind inbox) handled
+      set handled lput ? handled ; (item ind inbox) handled
     ]
-        
+    
     if msg_type = "order"[
-      ifelse not member? (item ind inbox) pending_orders
-      [
+      ifelse not member? ? pending_orders[
         add-bus (item 2 message)
         let new_bus_id (bus_count + 25)
-;        show new_bus_id
+        ;        show new_bus_id
         set new_buses lput new_bus_id new_buses
-        set pending_orders lput (item ind inbox) pending_orders
+        set pending_orders lput ? pending_orders
         set bus_count (bus_count + 1)
       ]
       [
         let sender_mother_station item 1 message
-        send-message (item 0 new_buses ) lput bus_count lput sender_mother_station ["init"]
+        send-message (item 0 new_buses ) (list "init" sender_mother_station bus_count station_beliefs)
         ;send-message sender lput (item 0 new_buses ) ["new-companion"]
         
-;        set independent_buses lput (item 0 new_buses) independent_buses
+        ;        set independent_buses lput (item 0 new_buses) independent_buses
         let i 0
         while [i < bus_count][
           let id i + 24
@@ -158,47 +147,48 @@ to handle-messages
         
         set pending_orders remove-item 0 pending_orders
         set new_buses remove item 0 new_buses new_buses
-        set handled lput (item ind inbox) handled
+        set handled lput ? handled ; (item ind inbox) handled
       ]
     ]
     
-
     
-    if msg_type = "ask-vote"
-    [
+    
+    if msg_type = "ask-vote"[
       let sender_current_stop item 1 message
       let sender_left_down item 2 message
       
-      let selected_station current_stop
-      if selected_station = -1
-      [set selected_station next_stop]
+      let my_station current_stop
+      if my_station = -1 [ set my_station next_stop ]
       
-      let selected_stop current_stop
-      if selected_stop = -1
-      [
-        set selected_stop next_stop
-        ]
-      
-      let dist measure-distance sender_current_stop selected_stop
-      if dist <= 20
-      [
+      let dist measure-distance sender_current_stop my_station
+      if dist <= 20[
         let vote (bus-needed? sender_left_down sender_current_stop)
         send-message sender lput vote ["vote"]
       ]
       
+      set handled lput ? handled ; (item ind inbox) handled
     ]
     
-    if msg_type = "vote"
-    [
+    if msg_type = "vote"[
       let vote item 1 message
       
-      ifelse vote
-      [
+      ifelse vote[
         set positive_votes positive_votes + 1
       ]
       [
         set negative_votes negative_votes + 1
       ]
+      
+      set handled lput ? handled ; (item ind inbox) handled
+    ]
+    
+    if msg_type = "moving-to"[
+      let station item 1 message
+      let eta item 2 message
+      let new_station_belief lput (list sender eta) (item station station_beliefs)
+      set station_beliefs replace-item station station_beliefs new_station_belief
+      
+      set handled lput ? handled ; (item ind inbox) handled
     ]
     
 ;    foreach message
@@ -211,16 +201,11 @@ to handle-messages
 ;        set handled lput ind handled
 ;        ]
 ;      ]
-
-    set ind (ind + 1)
-    
-
   ]
   
-  if item 0 asked_support and (positive_votes - negative_votes) >= 0
-    [
-      send-message leader lput 2 lput mother_station ["order"]
-    ]
+  if item 0 asked_support and (1 + positive_votes - negative_votes) > 0[
+    send-message leader lput 2 lput mother_station ["order"]
+  ]
   
   if length inbox > 0 [ show inbox ]
       
@@ -231,7 +216,7 @@ to handle-messages
 ;  ]
   
   if item 0 asked_support [
-    if item 1 asked_support + 2 < ticks [
+    if item 1 asked_support + 2 + wait_help_delay < ticks [
 ;      let preferences get-redirect-preferences
 ;      ifelse preferences = [][
 ;        send-message leader lput 2 lput mother_station ["order"]
@@ -242,4 +227,28 @@ to handle-messages
        set asked_support [false 0]
     ]
   ]  
+end
+
+to update-others-on-choice [ destination ]
+  if destination != -1[
+    let i 1
+    let eta ticks + floor (measure-distance current_stop destination)
+    while [ i <= bus_count ][
+      if i + 23 != bus_id[
+        send-message (i + 23) lput eta lput destination ["moving-to"]
+      ]
+      set i (i + 1)
+    ]
+  ]
+end
+
+to call-vote [left_down station]
+  let i 1
+  while [ i < bus_count ] [
+    if i + 23 != bus_id[
+      send-message (i + 23) lput left_down lput station ["ask-vote"]
+    ]
+    set i (i + 1)
+  ]
+  set asked_support lput ticks [true 0]
 end

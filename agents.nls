@@ -37,6 +37,12 @@ buses-own [
   help_candidates
   wait_help_delay
   help_distance_threshold
+  
+  starting_buses
+  
+  ;attractivness protocols
+  attractivness
+  
 ]
 
 globals [graph]
@@ -52,6 +58,7 @@ to init-buses
   set distance_matrix load-distances
   set passengers_matrix load-passengers
   
+  set starting_buses 5
   
   set station_beliefs []
   let i 0
@@ -62,7 +69,7 @@ to init-buses
   
   ifelse bus_id < 49[
     set mother_station (bus_id - 25) ; mod 24; to the one of the bus that asked for support (check inbox)
-    set bus_count 25
+    set bus_count starting_buses + 1
     set help_candidates []
   ]
   [
@@ -93,6 +100,19 @@ to init-buses
   set asked_support [false 0]
   set wait_help_delay 0
   set help_distance_threshold 10
+  
+  
+  set attractivness []
+  set i 0
+  while [i < 24] [
+    ifelse i = mother_station[
+      set attractivness lput 0 attractivness
+    ]
+    [
+      set attractivness lput 1 attractivness
+    ]
+    set i (i + 1)
+  ]
 
 end
 
@@ -103,7 +123,7 @@ to execute-actions
   if bus_id = 24 and ticks = 2 [
     let i 0
     ;let node_stations [0 3 13 16 22 23 ...] ; this are the main nodes of the graph, the ones that have a fixed bus
-    while [i < 24 ] [ ; [i < length node_stations] [
+    while [i < starting_buses ] [ ; [i < length node_stations] [
       add-bus 3
       set i i + 1
     ]
@@ -111,6 +131,8 @@ to execute-actions
   ]
   
   handle-messages
+  
+  update-beliefs
   
   if mother_station != -1[
     if at-stop [
@@ -135,7 +157,14 @@ to execute-actions
 ;          set next_stop mother_station
 ;        ]
       ]
-      if next_stop != -1[ pickup-passengers next_stop ] ;if no one is waiting in the motherstation the bus don't pickup the air
+      if next_stop = -1[ ;if no local choice gives gain, search further away
+        if consider-migration[
+          go-to-mother_station
+        ]
+      ]
+      ;otherwise pickup the passengers that gain from the trip
+      pickup-passengers next_stop
+      update-others-on-choice next_stop
     ]
     
     if next_stop != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
@@ -165,7 +194,7 @@ end
 to go-to-mother_station
   ifelse current_stop = mother_station [
     set going_in_service False
-    set next_stop -1
+    set next_stop get-optimal-station
   ]
   [
     if at-stop [
@@ -195,20 +224,22 @@ end
 
 ;pick up the passengers that will get a gain from going to that bus stop
 to pickup-passengers [station]
-  let left_down 0
-  foreach get-passengers-at-stop current_stop [
-    if distance-shortened station ? [ ;if the passenger gains something from the planned trip
-      ifelse not full [ 
-        pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
-      ]
-      [
-        set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
+  if station != -1[
+    let left_down 0
+    foreach get-passengers-at-stop current_stop [
+      if distance-shortened station ? [ ;if the passenger gains something from the planned trip
+        ifelse not full [ 
+          pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
+        ]
+        [
+          set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
+        ]
       ]
     ]
-  ]
-  
-  if (bus-needed? left_down current_stop) and (not item 0 asked_support) [
-    call-vote left_down current_stop
+    
+    if (bus-needed? left_down current_stop) and (not item 0 asked_support) [
+      call-vote left_down current_stop
+    ]
   ]
   
 end
@@ -216,16 +247,16 @@ end
 ;checks if a new bus needs to be bought or not
 to-report bus-needed? [left_down station]
   let pas_wait (length get-passengers-at-stop station) ;how many people are right now in the station
-  let bus_coming buses-converging station ; for now there is only one fixed bus for each stop
+  let bus_coming length item station station_beliefs ; for now there is only one fixed bus for each stop
   let passengers_expected get-passengers-next-quarter station
   
   let threshold 0
   
   ifelse faction = "fast"[
-    set threshold 150
+    set threshold 250
   ]
   [
-    set threshold 250
+    set threshold 500
   ]
   
   let need (left_down + pas_wait + passengers_expected - bus_coming * 100)
@@ -233,22 +264,54 @@ to-report bus-needed? [left_down station]
   report (need > threshold) 
 end
 
-to call-vote [left_down station]
-  let i 1
-  while [ i < bus_count ] [
-    send-message (i + 23) lput left_down lput station ["ask-vote"]
+to update-beliefs
+  let new_b []
+  foreach station_beliefs [
+    let nsb ?
+    ;erase from the list of beliefs the buses that already reached their destination
+    let arrived []
+    foreach ?[
+      if item 1 ? < ticks [ set arrived lput ? arrived ]
+    ]
+    foreach arrived [ set nsb remove ? nsb ]
+    ;start rebuilding the beliefs list with the updated knowledge
+    set new_b lput nsb new_b
+  ]
+  set station_beliefs new_b ;beliefs updated
+end
+
+
+
+
+
+
+to recalculate-attractivness
+  let i 0
+  set attractivness []
+  while [i < 24] [
+    set attractivness lput (measure-attractivness i) attractivness
     set i (i + 1)
   ]
-  set asked_support lput ticks [true 0]
 end
 
-to-report buses-converging [station]
-  report length item station station_beliefs
+to-report measure-attractivness [ station ]
+  let value 0
+  let station0 next_stop
+  if station != station0[ ;the station soon to be reached has no attractivness, since it is a mandatory stop
+    let waiting_passengers length get-passengers-at-stop station
+    let bus_count_for_stop length item station station_beliefs
+    let station_distance get-distance station0 station
+    let prior get-passengers-next-quarter station
+    
+    set value (0.5 * waiting_passengers + 0.5 * prior) - 50 * bus_count_for_stop
+    set value (value / station_distance)
+  ]
+  report value
 end
 
-
-
-
+to-report best-next-stop
+  report position (max attractivness) attractivness
+end
 
 
 
