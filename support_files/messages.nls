@@ -160,8 +160,18 @@ to handle-messages
       let my_station current_stop
       if my_station = -1 [ set my_station next_stop ]
       
-      let dist measure-distance sender_current_stop my_station
-      if dist <= 20[
+      if  next_stop = sender_current_stop 
+      [
+        set wait_help_delay measure-distance sender_current_stop 3
+        
+        set asked_support list true ticks
+         
+      ]
+      
+      
+      let dist measure-distance sender_current_stop selected_stop
+      if dist <= 20
+      [
         let vote (bus-needed? sender_left_down sender_current_stop)
         send-message sender lput vote ["vote"]
       ]
@@ -224,6 +234,7 @@ to handle-messages
 ;      [
 ;        send-message leader lput preferences lput mother_station ["ask-help"]
 ;      ]
+      set wait_help_delay 0
        set asked_support [false 0]
     ]
   ]  
