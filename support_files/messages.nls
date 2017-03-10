@@ -179,6 +179,16 @@ to handle-messages
         set selected_stop next_stop
         ]
       
+      
+      if  next_stop = sender_current_stop 
+      [
+        set wait_help_delay measure-distance sender_current_stop 3
+        
+        set asked_support list true ticks
+         
+      ]
+      
+      
       let dist measure-distance sender_current_stop selected_stop
       if dist <= 20
       [
@@ -231,7 +241,7 @@ to handle-messages
 ;  ]
   
   if item 0 asked_support [
-    if item 1 asked_support + 2 < ticks [
+    if item 1 asked_support + 2 < ticks and (item 1 asked_support ) + ceiling wait_help_delay < ticks[
 ;      let preferences get-redirect-preferences
 ;      ifelse preferences = [][
 ;        send-message leader lput 2 lput mother_station ["order"]
@@ -239,6 +249,7 @@ to handle-messages
 ;      [
 ;        send-message leader lput preferences lput mother_station ["ask-help"]
 ;      ]
+      set wait_help_delay 0
        set asked_support [false 0]
     ]
   ]  
