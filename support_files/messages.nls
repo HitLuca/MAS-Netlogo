@@ -145,7 +145,7 @@ to handle-messages
       let voting_start item 1 ?
       let voting_delay item 2 ?  
       
-      if voting_station = initiated_voting_station and voting_start + 2 >= ticks and (positive_votes - negative_votes) > 0
+      if voting_station = initiated_voting_station and voting_start + 2 = ticks and (positive_votes - negative_votes) > 0
       [
         send-message leader (list "order" initiated_voting_station 2)
         set positive_votes 0
