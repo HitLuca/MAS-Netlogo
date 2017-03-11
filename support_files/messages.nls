@@ -25,89 +25,6 @@ to handle-messages
     let msg_tick item 0 ? ;item ind inbox
     let msg_type item 0 message
        
-;    if msg_type = "redirect"[
-;      set mother_station item 1 message
-;      set going_in_service true
-;      set handled lput (item ind inbox) handled
-;      let dist_to_closest 0
-;      
-;      
-;      let station current_stop
-;      if current_stop = -1[
-;        ifelse previous_stop = -1
-;        [set dist_to_closest  measure-distance 3 next_stop]
-;        [set dist_to_closest  measure-distance 3 next_stop]
-;        set station next_stop]
-;      let dist dist_to_closest + measure-distance station mother_station
-;      
-;      send-message (item 0 (item mother_station fixed_buses)) lput dist ["confirm-redirect"]
-;    ]
-    
-;    if msg_type = "ask-help"[
-;      let destination item 1 message
-;      let preferences item 2 message
-;      
-;      let i 0
-;      while[i < length preferences and member? (item i preferences) taken_buses]
-;      [
-;        set i i + 1
-;      ]
-;      
-;      ifelse i < length preferences
-;      [
-;        send-message  (item i preferences) lput destination ["redirect"]
-;        set taken_buses lput (item i preferences) taken_buses
-;      ]
-;      [
-;        send-message leader lput 2 lput destination ["order"]
-;      ]
-;      set handled lput (item ind inbox) handled
-;    ]
-    
-;    if msg_type = "ask-redirect"
-;    [
-;      if not taken
-;      [
-;        send-message sender ["confirm-redirect"]
-;        set taken true
-;      ]
-;      set handled lput (item ind inbox) handled
-;    ]
-    
-    
-;    if msg_type = "confirm-redirect"[
-;      set wait_help_delay item 1 message
-;;      set help_candidates lput sender help_candidates
-;      set handled lput (item ind inbox) handled
-;    ]
-
-;    if msg_type = "ask-support"[
-;      if not going_in_service[
-;        let to_sender_station item 1 message
-;        let from current_stop
-;        if current_stop = -1[
-;          set from next_stop
-;        ]
-;        
-;        let dist measure-distance from to_sender_station
-;        
-;        let free_seats (get-capacity - length bus_passengers)
-;        
-;        if dist <= help_distance_threshold
-;        [
-;          send-message sender lput free_seats lput dist ["info-support"]
-;        ]
-;      ]
-;      set handled lput (item ind inbox) handled
-;    ]
-    
-;    if msg_type = "info-support"[
-;      let dist item 1 message
-;      let free_seats item 2 message
-;      set help_candidates lput (lput free_seats lput dist lput sender []) help_candidates
-;      
-;      set handled lput (item ind inbox) handled
-;    ]
 
     if msg_type = "init"[
       set mother_station item 1 message
@@ -162,12 +79,18 @@ to handle-messages
       
       if  next_stop = sender_current_stop 
       [
-        set wait_help_delay measure-distance sender_current_stop 3
+        let wait_help_delay measure-distance sender_current_stop 3
         
-        set asked_support list true ticks
+        set asked_support lput (list current_stop ticks wait_help_delay ) asked_support
          
       ]
       
+      let selected_stop current_stop
+      
+      if selected_stop = -1
+      [
+        set selected_stop  next_stop
+      ]
       
       let dist measure-distance sender_current_stop selected_stop
       if dist <= 20
@@ -201,23 +124,13 @@ to handle-messages
       set handled lput ? handled ; (item ind inbox) handled
     ]
     
-;    foreach message
-;    [
-;      let submessage ?
-;      let msg_type item 0 submessage
-;      if msg_type = "init"
-;      [
-;        set mother_station item 1 submessage
-;        set handled lput ind handled
-;        ]
-;      ]
   ]
   
-  if item 0 asked_support and (1 + positive_votes - negative_votes) > 0[
+  if length asked_support > 0 and (1 + positive_votes - negative_votes) > 0[
     send-message leader lput 2 lput mother_station ["order"]
   ]
   
-  if length inbox > 0 [ show inbox ]
+;  if length inbox > 0 [ show inbox ]
       
   foreach handled[ set inbox remove ? inbox ] ;set inbox_read lput ? inbox_read TO BE ADDED so we do not delete messages
   
@@ -225,18 +138,27 @@ to handle-messages
 ;    bus-needed? help_requests
 ;  ]
   
-  if item 0 asked_support [
-    if item 1 asked_support + 2 + wait_help_delay < ticks [
-;      let preferences get-redirect-preferences
-;      ifelse preferences = [][
-;        send-message leader lput 2 lput mother_station ["order"]
-;      ]
-;      [
-;        send-message leader lput preferences lput mother_station ["ask-help"]
-;      ]
-      set wait_help_delay 0
-       set asked_support [false 0]
+  if length asked_support > 0[
+    show asked_support
+      let to_delete []
+    foreach asked_support
+    [
+      let voting_station item 0 ?
+      let voting_start item 1 ?
+      let voting_delay item 2 ?  
+      
+      
+      if voting_start + 2 + voting_delay < ticks [
+        set to_delete lput ? to_delete
+      ]
+      
     ]
+    
+    foreach to_delete
+    [
+      set asked_support remove ? asked_support
+    ]
+    show asked_support
   ]  
 end
 
@@ -261,5 +183,7 @@ to call-vote [left_down station]
     ]
     set i (i + 1)
   ]
-  set asked_support lput ticks [true 0]
+  
+  let wait_help_delay measure-distance current_stop 3
+  set asked_support lput (list current_stop ticks wait_help_delay ) asked_support
 end

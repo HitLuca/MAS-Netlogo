@@ -35,7 +35,6 @@ buses-own [
   
   asked_support
   help_candidates
-  wait_help_delay
   help_distance_threshold
   
   starting_buses
@@ -97,8 +96,7 @@ to init-buses
     ;more interested in bringing people around faster, they are more likely to order and vote for new buses
   ]
   
-  set asked_support [false 0]
-  set wait_help_delay 0
+  set asked_support []
   set help_distance_threshold 10
   
   
@@ -237,7 +235,7 @@ to pickup-passengers [station]
       ]
     ]
     
-    if (bus-needed? left_down current_stop) and (not item 0 asked_support) [
+    if (bus-needed? left_down current_stop) and (length asked_support = 0) [
       call-vote left_down current_stop
     ]
   ]
