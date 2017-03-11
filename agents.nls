@@ -60,7 +60,7 @@ to init-buses
   set distance_matrix load-distances
   set passengers_matrix load-passengers
   
-  set starting_buses 5
+  set starting_buses 15
   set positive_votes 0
   set negative_votes 0
   set initiated_voting_station -1
@@ -72,7 +72,7 @@ to init-buses
     set i (i + 1)
   ]
   
-  ifelse bus_id < 49[
+  ifelse bus_id < 24 + starting_buses + 1[
     set mother_station (bus_id - 25) ; mod 24; to the one of the bus that asked for support (check inbox)
     set bus_count starting_buses + 1
     set help_candidates []
@@ -180,6 +180,8 @@ end
 
 ;makes the bus move from origin to destination following the shortest path
 to travel-to-destination [origin destination]
+  show "next_stop"
+  show next_stop
   if origin != destination [
     ifelse is-connected origin destination [
       set next_stop destination
