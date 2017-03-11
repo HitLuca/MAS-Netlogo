@@ -135,6 +135,7 @@ to execute-actions
   ]
   
   handle-messages
+  handle-voting
   
   update-beliefs
   
@@ -241,7 +242,16 @@ to pickup-passengers [station]
       ]
     ]
     
-    if (bus-needed? left_down current_stop) and (length asked_support = 0) [
+    let voting_in_process false
+    foreach asked_support
+    [
+      if item 0 ? = current_stop
+      [
+        set voting_in_process true
+        ]
+      ]
+    
+    if (bus-needed? left_down current_stop) and not voting_in_process [
       call-vote left_down current_stop
     ]
   ]
@@ -283,10 +293,6 @@ to update-beliefs
   ]
   set station_beliefs new_b ;beliefs updated
 end
-
-
-
-
 
 
 to recalculate-attractivness
