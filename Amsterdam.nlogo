@@ -909,10 +909,10 @@ PENS
 "pen-1" 1.0 0 -7500403 true "" ""
 
 PLOT
-1412
-327
-1726
-545
+1101
+759
+1415
+977
 Total Amount of Money Spent
 Ticks
 Euros

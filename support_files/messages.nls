@@ -14,8 +14,6 @@ to handle-messages
   ;let help_requests []
   ;let taken false
   ;let taken_buses []
-  let positive_votes 0
-  let negative_votes 0
 
   foreach inbox[  
 ;  while[ind < length inbox ][
@@ -79,9 +77,9 @@ to handle-messages
       
       if  next_stop = sender_current_stop 
       [
-        let wait_help_delay measure-distance sender_current_stop 3
+        let wait_help_delay ceiling measure-distance sender_current_stop 3
         
-        set asked_support lput (list current_stop ticks wait_help_delay ) asked_support
+        set asked_support lput (list sender_current_stop ticks wait_help_delay ) asked_support
          
       ]
       
@@ -126,9 +124,9 @@ to handle-messages
     
   ]
   
-  if length asked_support > 0 and (1 + positive_votes - negative_votes) > 0[
-    send-message leader lput 2 lput mother_station ["order"]
-  ]
+;  if length asked_support > 0 and (positive_votes - negative_votes) > 0[
+;    send-message leader lput 2 lput mother_station ["order"]
+;  ]
   
 ;  if length inbox > 0 [ show inbox ]
       
@@ -140,13 +138,19 @@ to handle-messages
   
   if length asked_support > 0[
     show asked_support
-      let to_delete []
+    let to_delete []
     foreach asked_support
     [
       let voting_station item 0 ?
       let voting_start item 1 ?
       let voting_delay item 2 ?  
       
+      if voting_station = initiated_voting_station and voting_start + 2 >= ticks and (positive_votes - negative_votes) > 0
+      [
+        send-message leader (list "order" initiated_voting_station 2)
+        set positive_votes 0
+        set negative_votes 0
+      ]
       
       if voting_start + 2 + voting_delay < ticks [
         set to_delete lput ? to_delete
@@ -184,6 +188,10 @@ to call-vote [left_down station]
     set i (i + 1)
   ]
   
-  let wait_help_delay measure-distance current_stop 3
+  set positive_votes 1
+  set negative_votes 0
+  set initiated_voting_station station
+  
+  let wait_help_delay ceiling measure-distance current_stop 3
   set asked_support lput (list current_stop ticks wait_help_delay ) asked_support
 end

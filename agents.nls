@@ -29,6 +29,9 @@ buses-own [
   
   vote_distance_threshold
   faction
+  positive_votes
+  negative_votes
+  initiated_voting_station
   
   last_order_tick
   pending_orders
@@ -58,6 +61,9 @@ to init-buses
   set passengers_matrix load-passengers
   
   set starting_buses 5
+  set positive_votes 0
+  set negative_votes 0
+  set initiated_voting_station -1
   
   set station_beliefs []
   let i 0
