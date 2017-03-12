@@ -173,7 +173,7 @@ to handle-voting
       if voting_station = initiated_voting_station and voting_start + wait_voting_delay = ticks
       [
         if (positive_votes - negative_votes) > 0
-        [send-message leader (list "order" initiated_voting_station 2)]
+        [send-message leader (list "order" initiated_voting_station 3)]
         set positive_votes 0
         set negative_votes 0
         set initiated_voting_station -1

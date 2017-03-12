@@ -269,10 +269,10 @@ to-report bus-needed? [left_down station]
   let threshold 0
   
   ifelse faction = "fast"[
-    set threshold 250
+    set threshold 150
   ]
   [
-    set threshold 500
+    set threshold 300
   ]
   
   let need (left_down + pas_wait + passengers_expected - bus_coming * 100 - buses_ordered * 100)

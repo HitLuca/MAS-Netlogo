@@ -114,7 +114,7 @@ to-report get-gain [station]
   ;show "buses_ordered"
 ;  show buses_ordered
   
-  let  gain  (1 * passengers_gain) + (0.5 * waiting_passengers) + (0.5 * prior) - (60 * (bus_count_for_stop))
+  let  gain  (1 * passengers_gain) + (0.7 * waiting_passengers) + (0.5 * prior) - (70 * (bus_count_for_stop))
   
   report gain
 end
