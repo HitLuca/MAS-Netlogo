@@ -24,28 +24,14 @@ end
 
 ;checks if two stations are directly connected or not
 to-report is-connected [origin destination]
-  ifelse member? destination item origin graph [
-    report True
-  ]
-  [
-    report False
-  ]
+  ifelse member? destination item origin graph [report true] [report false]
 end
 
 ;returns the optimal station to move given the loaded passengers destinations
 to-report get-optimal-station
-  let best_station (- 1)
-  let best_gain 0
-  foreach item current_stop graph[ ;for each connected station
-    let station ?
-    let gain get-gain station
-    
-    if  gain > best_gain[
-      set best_gain  gain      
-      set best_station station
-    ]
-  ]
-  report best_station
+  let connected_stations item current_stop graph
+  let gain map [ get-gain ? ] connected_stations
+  ifelse max gain > 0 [report item max-index gain connected_stations][report (- 1)]
 end
 
 ;returns the minimum distance between two stations
@@ -60,21 +46,21 @@ to-report distance-shortened [station passenger]
   report distance1 < distance0
 end
 
-to-report consider-migration
-  let i 0
-  let best_gain 0
-  let destination (- 1)
-  while [ i < 24 ] [
-    let gain get-gain i
-    if  gain > best_gain[
-      set best_gain  gain
-      set destination i
+; count how many passengers get their trip shortened (distance-shortened)
+to-report passenger-gain [station]
+  let passengers_gain 0
+  foreach get-passengers-at-stop current_stop[ 
+    if distance-shortened station ? [
+      set passengers_gain (passengers_gain + 1)
     ]
-    set i (i + 1)
   ]
-  
-  ifelse destination != (- 1)[
-    set mother_station destination
+  report passengers_gain
+end
+
+to-report consider-migration
+  let gain map [ get-gain ? ] n-values 24 [?]
+  ifelse max gain > 0 [
+    set mother_station max-index gain
     set going_in_service true
     report true
   ]
@@ -85,12 +71,8 @@ end
 
 to-report get-gain [station]
   ;gain parameters calculation
-  let passengers_gain 0
-  foreach get-passengers-at-stop current_stop[ ; count how many passengers get their trip shortened (distance-shortened)
-    if distance-shortened station ? [
-      set passengers_gain (passengers_gain + 1)
-    ]
-  ]
+  let passengers_gain passenger-gain station
+  
 ;  if passengers_gain != 0 [
 ;    set passengers_gain passengers_gain / length get-passengers-at-stop current_stop
 ;  ]

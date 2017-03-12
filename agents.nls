@@ -65,12 +65,7 @@ to init-buses
   set negative_votes 0
   set initiated_voting_station -1
   
-  set station_beliefs []
-  let i 0
-  while [i < 24] [
-    set station_beliefs lput [] station_beliefs
-    set i (i + 1)
-  ]
+  set station_beliefs n-values 24 [ [] ]
   
   ifelse bus_id < 24 + starting_buses + 1[
     set mother_station (bus_id - 25) ; mod 24; to the one of the bus that asked for support (check inbox)
@@ -106,30 +101,25 @@ to init-buses
   set help_distance_threshold 10
   
   
-  set attractivness []
-  set i 0
-  while [i < 24] [
-    ifelse i = mother_station[
-      set attractivness lput 0 attractivness
-    ]
-    [
-      set attractivness lput 1 attractivness
-    ]
-    set i (i + 1)
-  ]
-
+  ;set attractivness []
 end
+
+
+;----utility function
+
+to-report max-index [array]
+  report position (max array) array
+end
+
 
 ;--------------------------------------------------------;
 ;--------------------MAIN ROUTINE------------------------;
 ;--------------------------------------------------------;
 to execute-actions
   if bus_id = 24 and ticks = 2 [
-    let i 0
     ;let node_stations [0 3 13 16 22 23 ...] ; this are the main nodes of the graph, the ones that have a fixed bus
-    while [i < starting_buses ] [ ; [i < length node_stations] [
+    foreach n-values starting_buses [?] [ ; [i < length node_stations] [
       add-bus 3
-      set i i + 1
     ]
     set mother_station 3
   ]
@@ -156,7 +146,8 @@ to execute-actions
 ;        
 ;        
 ;        ifelse current_stop = mother_station [
-          set next_stop get-optimal-station
+          set next_stop next-best-station 1 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
+          ;set next_stop get-optimal-station ;using gain
 ;        ]
 ;        [
 ;          set next_stop mother_station
@@ -180,8 +171,6 @@ end
 
 ;makes the bus move from origin to destination following the shortest path
 to travel-to-destination [origin destination]
-  show "next_stop"
-  show next_stop
   if origin != destination [
     ifelse is-connected origin destination [
       set next_stop destination
@@ -296,35 +285,34 @@ to update-beliefs
   set station_beliefs new_b ;beliefs updated
 end
 
-
-to recalculate-attractivness
-  let i 0
-  set attractivness []
-  while [i < 24] [
-    set attractivness lput (measure-attractivness i) attractivness
-    set i (i + 1)
-  ]
-end
-
+;attractivness estimation of a station by itself
 to-report measure-attractivness [ station ]
-  let value 0
-  let station0 next_stop
-  if station != station0[ ;the station soon to be reached has no attractivness, since it is a mandatory stop
-    let waiting_passengers length get-passengers-at-stop station
-    let bus_count_for_stop length item station station_beliefs
-    let station_distance get-distance station0 station
-    let prior get-passengers-next-quarter station
-    
-    set value (0.5 * waiting_passengers + 0.5 * prior) - 50 * bus_count_for_stop
-    set value (value / station_distance)
+  let waiting_passengers length get-passengers-at-stop station
+  let bus_count_for_stop length item station station_beliefs
+  let prior get-passengers-next-quarter station
+  
+  let att (0.5 * waiting_passengers + 0.5 * prior) - 50 * bus_count_for_stop
+  report att
+end
+
+;estimate of the acctractivness of a station comprehensive of its connections, recursively weigthed by distance
+to-report get-attractivness [ station depth ]
+  let a measure-attractivness station
+  if depth > 0 [
+    foreach item station graph [
+      set a (a + (get-attractivness ? (depth - 1)) / ln measure-distance station ?)
+    ]
   ]
-  report value
+  if station = mother_station [ set a (1.5 * a) ]
+  report a
 end
 
-to-report best-next-stop
-  report position (max attractivness) attractivness
+;based on recursive attractivness and passenger gain, it tries to estimates the best stop to go next
+to-report next-best-station [depth]
+  let connected_stations item current_stop graph
+  let gain map [ (2 * passenger-gain ? + get-attractivness ? depth) ] connected_stations ;/ ln measure-distance current_stop ? ] connected_stations
+  ifelse max gain > 0 [report item max-index gain connected_stations][report (- 1)]
 end
-
 
 
 
