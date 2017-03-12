@@ -81,35 +81,40 @@ to-report get-gain [station]
   let bus_count_for_stop length item station station_beliefs
   let prior get-passengers-next-quarter station
 
-;  let waiting_passengers_denominator 0
-;  let bus_count_for_stop_denominator 0
-;  let prior_denominator 0
-;  foreach item current_stop graph[
-;    if waiting_passengers != 0 [
-;      set waiting_passengers_denominator waiting_passengers_denominator + length get-passengers-at-stop ?
-;    ]
-;    if bus_count_for_stop != 0 [
-;      set bus_count_for_stop_denominator bus_count_for_stop_denominator + length item ? station_beliefs
-;    ]
-;    if prior != 0 [
-;      set prior_denominator prior_denominator + get-passengers-next-quarter ?
-;    ]
-;  ]
-;  
-;  if waiting_passengers_denominator != 0 [
-;  set waiting_passengers waiting_passengers / waiting_passengers_denominator
-;  ]
-;  if bus_count_for_stop_denominator != 0 [
-;  set bus_count_for_stop bus_count_for_stop / bus_count_for_stop_denominator
-;  ]
-;  if prior_denominator != 0 [
-;  set prior prior / prior_denominator
-;  ]
+  let waiting_passengers_denominator 0
+  let bus_count_for_stop_denominator 0
+  let prior_denominator 0
+  foreach item current_stop graph[
+    if waiting_passengers != 0 [
+      set waiting_passengers_denominator waiting_passengers_denominator + length get-passengers-at-stop ?
+    ]
+    if bus_count_for_stop != 0 [
+      set bus_count_for_stop_denominator bus_count_for_stop_denominator + length item ? station_beliefs
+    ]
+    if prior != 0 [
+      set prior_denominator prior_denominator + get-passengers-next-quarter ?
+    ]
+  ]
   
-  ;let station_distance get-distance current_stop station
-  ;let efficiency_rate passengers_gain / station_distance
+  if waiting_passengers_denominator != 0 [
+  set waiting_passengers waiting_passengers / waiting_passengers_denominator
+  ]
+  if bus_count_for_stop_denominator != 0 [
+  set bus_count_for_stop bus_count_for_stop / bus_count_for_stop_denominator
+  ]
+  if prior_denominator != 0 [
+  set prior prior / prior_denominator
+  ]
   
-  let  gain  (1 * passengers_gain) + (0.5 * waiting_passengers) + (0.5 * prior) - (50 * bus_count_for_stop)
+;  let station_distance measure-distance current_stop station
+;  let efficiency_rate passengers_gain / station_distance
+  
+
+  
+  ;show "buses_ordered"
+;  show buses_ordered
+  
+  let  gain  (1 * passengers_gain) + (0.5 * waiting_passengers) + (0.5 * prior) - (60 * (bus_count_for_stop))
   
   report gain
 end

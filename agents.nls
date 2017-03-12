@@ -42,8 +42,8 @@ buses-own [
   
   starting_buses
   
-  ;attractivness protocols
-  attractivness
+  ;attractiveness protocols
+  attractiveness
   
 ]
 
@@ -146,7 +146,7 @@ to execute-actions
 ;        
 ;        
 ;        ifelse current_stop = mother_station [
-          set next_stop next-best-station 1 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
+          set next_stop next-best-station 2 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
           ;set next_stop get-optimal-station ;using gain
 ;        ]
 ;        [
@@ -242,7 +242,7 @@ to pickup-passengers [station]
         ]
       ]
     
-    if (bus-needed? left_down current_stop) and not voting_in_process [
+    if (bus-needed? left_down current_stop)[; and not voting_in_process [
       call-vote left_down current_stop
     ]
   ]
@@ -251,6 +251,17 @@ end
 
 ;checks if a new bus needs to be bought or not
 to-report bus-needed? [left_down station]
+  
+  let buses_ordered 0
+  foreach asked_support
+  [
+    if station = item 0 ?
+    [
+      set buses_ordered buses_ordered + 1
+    ]
+  ]
+  
+  
   let pas_wait (length get-passengers-at-stop station) ;how many people are right now in the station
   let bus_coming length item station station_beliefs ; for now there is only one fixed bus for each stop
   let passengers_expected get-passengers-next-quarter station
@@ -264,7 +275,7 @@ to-report bus-needed? [left_down station]
     set threshold 500
   ]
   
-  let need (left_down + pas_wait + passengers_expected - bus_coming * 100)
+  let need (left_down + pas_wait + passengers_expected - bus_coming * 100 - buses_ordered * 100)
   
   report (need > threshold) 
 end

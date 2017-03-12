@@ -64,7 +64,7 @@ to handle-messages
         ]
         [
           let sender_mother_station item 1 message
-          show "init"
+
           send-message (item 0 new_buses ) (list "init" sender_mother_station bus_count station_beliefs)
           ;send-message sender lput (item 0 new_buses ) ["new-companion"]
           
@@ -73,7 +73,6 @@ to handle-messages
           while [i < bus_count][
             let id i + 24
             if not (id = bus_id)[
-              show "new-bus"
               send-message id (list "new-bus" (item 0 new_buses) sender_mother_station)
             ]; let everyone know there's a new independent bus and its ID
             set i (i + 1)
@@ -160,7 +159,7 @@ to handle-messages
 end
 
 to handle-voting
-    let wait_voting_delay 3
+    let wait_voting_delay 7
   if length asked_support > 0[
 ;    show asked_support
     let to_delete []
@@ -182,10 +181,12 @@ to handle-voting
       
       ;wait for the ordered bus to arrive before initiating another voting
       if voting_start + wait_voting_delay + wait_for_bus_delay < ticks [
+        
         set to_delete lput ? to_delete
       ]
       
     ]
+    
     
     foreach to_delete
     [

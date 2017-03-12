@@ -768,13 +768,13 @@ to-report get-passengers-at-stop [b_s_id]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-21
-12
-1097
-849
+4
+10
+756
+602
 -1
 -1
-26.0
+18.1
 1
 10
 1
@@ -795,10 +795,10 @@ ticks
 30.0
 
 BUTTON
-1096
-12
-1162
-45
+753
+10
+819
+43
 NIL
 setup
 NIL
@@ -812,10 +812,10 @@ NIL
 1
 
 MONITOR
-1097
-108
-1162
-153
+754
+106
+819
+151
 DAYS
 days
 17
@@ -823,10 +823,10 @@ days
 11
 
 BUTTON
-1097
-43
-1163
-76
+754
+41
+820
+74
 NIL
 go
 NIL
@@ -840,10 +840,10 @@ NIL
 1
 
 BUTTON
-1096
-76
-1162
-109
+753
+74
+819
+107
 NIL
 go
 T
@@ -857,10 +857,10 @@ NIL
 1
 
 MONITOR
-1097
-151
-1162
-196
+754
+149
+819
+194
 TIME
 current_time
 17
@@ -868,10 +868,10 @@ current_time
 11
 
 MONITOR
-1097
-238
-1336
-283
+754
+236
+993
+281
 Total Amount of Money Spent
 expenses
 2
@@ -879,10 +879,10 @@ expenses
 11
 
 MONITOR
-1097
-282
-1336
-327
+754
+280
+993
+325
 Total Number of Messages Sent
 number_of_messages
 2
@@ -890,10 +890,10 @@ number_of_messages
 11
 
 PLOT
-1098
-327
-1412
-545
+755
+325
+1069
+543
 Average Travel Time
 Ticks
 Time
@@ -909,10 +909,10 @@ PENS
 "pen-1" 1.0 0 -7500403 true "" ""
 
 PLOT
-1101
-759
-1415
-977
+758
+757
+1072
+975
 Total Amount of Money Spent
 Ticks
 Euros
@@ -927,10 +927,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot expenses"
 
 PLOT
-1100
-545
-1414
-763
+757
+543
+1071
+761
 Total Number of Messages Sent
 Ticks
 #Messages
@@ -945,10 +945,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot number_of_messages"
 
 MONITOR
-1098
-196
-1338
-241
+755
+194
+995
+239
 Average Travel Time
 final_average_travelling_time
 2
