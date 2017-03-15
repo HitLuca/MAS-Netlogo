@@ -100,6 +100,7 @@ to handle-messages
         
         set asked_support lput (list sender_current_stop ticks wait_help_delay ) asked_support
          
+         
       ]
       
       let selected_stop current_stop
