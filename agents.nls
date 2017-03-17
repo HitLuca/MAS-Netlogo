@@ -134,6 +134,7 @@ to execute-actions
       add-bus 3
     ]
     set mother_station 3
+    stop
   ]
   
   handle-messages
@@ -142,7 +143,7 @@ to execute-actions
   update-beliefs
   
   if mother_station != -1[
-    if at-stop [
+    ifelse at-stop [
       drop-passengers ;everytime you reach a stop you drop all passengers
       if ticks >= wait_at_next_station_delay
       [
@@ -177,6 +178,9 @@ to execute-actions
         pickup-passengers next_destination
         update-others-on-choice next_destination
       ]
+    ]
+    [
+      if eta_next_station - ticks < 5 [ waiting-request? ]
     ]
     
     if next_destination != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
@@ -240,7 +244,7 @@ to pickup-passengers [station]
   if station != -1[
     let left_down 0
     foreach get-passengers-at-stop current_stop [
-      if distance-shortened station ? [ ;if the passenger gains something from the planned trip
+      if distance-shortened current_stop station ? [ ;if the passenger gains something from the planned trip
         ifelse not full [ 
           pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
         ]
@@ -338,7 +342,7 @@ end
 ;based on recursive attractivness and passenger gain, it tries to estimates the best stop to go next
 to-report next-best-station [depth]
   let connected_stations item current_stop graph
-  let gain map [ (2 * passenger-gain ? + get-attractivness ? depth) ] connected_stations ;/ ln measure-distance current_stop ? ] connected_stations
+  let gain map [ (2 * passenger-gain current_stop ? + get-attractivness ? depth) ] connected_stations ;/ ln measure-distance current_stop ? ] connected_stations
   ifelse max gain > 0
   [report item max-index gain connected_stations]
   [
@@ -360,31 +364,38 @@ to-report next-best-station [depth]
   ]
 end
 
-
 to waiting-request?
   let coincidence find-next-coincidence next_stop
   if length coincidence > 0[
     let wait_time eta_next_station - item 1 coincidence
-    if waiting-reasonable? wait_time bus_passengers [ ask-to-wait coincidence wait_time bus_passengers ]
+    if length bus_passengers > 0[
+      if waiting-reasonable? wait_time bus_passengers [ ask-to-wait item 0 coincidence wait_time bus_passengers ]
+    ]
   ]
 end
 
 to-report find-next-coincidence [station]
   let bus_coming filter [item 1 ? < eta_next_station] item station station_beliefs ;other buses coming to my next station before me
   set bus_coming sort-by [item 1 ?1 > item 1 ?2] bus_coming ;order by descending time of arrival
-  ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return an empty list
+  ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return zero
 end
 
 to-report waiting-reasonable? [ wait_time pass_gain ]
   let connected_stations item next_stop graph
   let avg_travel_time (sum map [measure-distance next_stop ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
-  
-  let gain 2 * avg_travel_time * length pass_gain ;how much time will the new passengers have to wait on average before a new bus comes to the station (very approximated)
-  let loss wait_time * length bus_passengers ;TODO (change bus_passenger with the forecast of it) the time it waits multiplied by the number of passengers it will carry
+  ;how much time will the new passengers have to wait on average before a new bus comes to the station (very approximated)
+  let gain 2 * avg_travel_time * min (list length pass_gain get-capacity) ;this max is because for a bus being full is the maximum gain, it cannot carry more
 
-   report gain > loss
+  let loss wait_time * passenger-forecast
+  
+  report gain > loss
 end
 
+to-report passenger-forecast
+  let station0 next_stop
+  if station0 = -1 [ set station0 current_stop ]
+  report max map [ passenger-gain station0 ? ] item station0 graph
+end
 
 
 
