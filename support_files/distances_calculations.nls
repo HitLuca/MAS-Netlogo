@@ -40,17 +40,23 @@ to-report measure-distance [station0 station1]
 end
 
 ;returns the minimum distance if a passenger would be moved to the given station
-to-report distance-shortened [station passenger]
-  let distance0 measure-distance current_stop item 1 passenger
-  let distance1 measure-distance station item 1 passenger
+to-report distance-shortened [station0 station1 passenger]
+  let distance0 measure-distance station0 item 1 passenger
+  let distance1 measure-distance station1 item 1 passenger
   report distance1 < distance0
 end
 
 ; count how many passengers get their trip shortened (distance-shortened)
-to-report passenger-gain [station]
+to-report passenger-gain [station0 station1]
   let passengers_gain 0
-  foreach get-passengers-at-stop current_stop[ 
-    if distance-shortened station ? [
+  foreach get-passengers-at-stop station0[ 
+    if distance-shortened station0 station1 ? [
+      set passengers_gain (passengers_gain + 1)
+    ]
+  ]
+  ;in case we are not yet in a station we also add the passengers in the bus
+  foreach bus_passengers[ 
+    if distance-shortened station0 station1 ? [
       set passengers_gain (passengers_gain + 1)
     ]
   ]
@@ -71,7 +77,7 @@ end
 
 to-report get-gain [station]
   ;gain parameters calculation
-  let passengers_gain passenger-gain station
+  let passengers_gain passenger-gain current_stop station
   
 ;  if passengers_gain != 0 [
 ;    set passengers_gain passengers_gain / length get-passengers-at-stop current_stop
