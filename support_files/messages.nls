@@ -201,10 +201,10 @@ end
 to update-others-on-choice [ destination ]
   if destination != -1[
     let i 1
-    let eta ticks + floor (measure-distance current_stop destination)
+    set eta_next_station ticks + floor (measure-distance current_stop destination)
     while [ i <= bus_count ][
       if i + 23 != bus_id[
-        send-message (i + 23) lput eta lput destination ["moving-to"]
+        send-message (i + 23) lput eta_next_station lput destination ["moving-to"]
       ]
       set i (i + 1)
     ]

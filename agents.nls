@@ -27,6 +27,8 @@ buses-own [
   
   next_destination
   
+  eta_next_station
+  
   vote_distance_threshold
   faction
   positive_votes
@@ -352,7 +354,33 @@ to-report next-best-station [depth]
 end
 
 
+to waiting-request?
+  let coincidence find-next-coincidence next_stop
+  if length coincidence > 0[
+    let wait_time eta_next_station - item 1 coincidence
+    if waiting-reasonable? wait_time bus_passengers [ ask-to-wait coincidence wait_time bus_passengers ]
+  ]
+end
 
+to-report find-next-coincidence [station]
+  let bus_coming filter [item 1 ? < eta_next_station] item station station_beliefs ;other buses coming to my next station before me
+  set bus_coming sort-by [item 1 ?1 > item 1 ?2] bus_coming ;order by descending time of arrival
+  ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return an empty list
+end
+
+to-report waiting-reasonable? [ wait_time pass_gain ]
+  let connected_stations item next_stop graph
+  let avg_travel_time (sum map [measure-distance next_stop ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
+  
+  let gain 2 * avg_travel_time * length pass_gain ;how much time will the new passengers have to wait on average before a new bus comes to the station (very approximated)
+  let loss wait_time * length bus_passengers ;TODO (change bus_passenger with the forecast of it) the time it waits multiplied by the number of passengers it will carry
+
+   report gain > loss
+end
+
+to ask-to-wait [receiver_id wait_time pass_gain ]
+  send-message receiver_id (list "wait?" wait_time pass_gain)
+end
 
 
 
