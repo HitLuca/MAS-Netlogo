@@ -766,6 +766,10 @@ to-report get-passengers-at-stop [b_s_id]
 
   report information
 end
+
+to ask-to-wait [receiver_id wait_time pass_gain ]
+  send-message receiver_id (list "wait?" wait_time pass_gain)
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 4

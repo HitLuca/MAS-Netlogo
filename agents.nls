@@ -41,6 +41,8 @@ buses-own [
   asked_support
   help_distance_threshold
   
+  wait_at_next_station_delay
+  
   starting_buses
   
   ;attractiveness protocols
@@ -142,40 +144,45 @@ to execute-actions
   if mother_station != -1[
     if at-stop [
       drop-passengers ;everytime you reach a stop you drop all passengers
-      ifelse going_in_service[ ; this part decides which will be the next_stop
-        go-to-mother_station
-      ]
+      if ticks >= wait_at_next_station_delay
       [
-        ;buses decide their mother_station based on where they are more needed (
-;        if current_stop != mother_station[
-;          ;TODO this protocolo has to be improved and also consider other buses destinations and the prior
-;          if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
-;            set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
-;          ]
-;        ]
-;        
-;        
-;        ifelse current_stop = mother_station [
-          set next_destination next-best-station 2 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
-          ;set next_stop get-optimal-station ;using gain
-;        ]
-;        [
-;          set next_stop mother_station
-;        ]
-      ]
-      if next_destination = -1[ ;if no local choice gives gain, search further away
-        if consider-migration[
+        ifelse going_in_service[ ; this part decides which will be the next_stop
           go-to-mother_station
         ]
+        [
+          ;buses decide their mother_station based on where they are more needed (
+          ;        if current_stop != mother_station[
+          ;          ;TODO this protocolo has to be improved and also consider other buses destinations and the prior
+          ;          if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
+          ;            set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
+          ;          ]
+          ;        ]
+          ;        
+          ;        
+          ;        ifelse current_stop = mother_station [
+          set next_destination next-best-station 2 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
+                                                   ;set next_stop get-optimal-station ;using gain
+                                                   ;        ]
+                                                   ;        [
+                                                   ;          set next_stop mother_station
+                                                   ;        ]
+        ]
+        if next_destination = -1[ ;if no local choice gives gain, search further away
+          if consider-migration[
+            go-to-mother_station
+          ]
+        ]
+        ;otherwise pickup the passengers that gain from the trip
+        
+        pickup-passengers next_destination
+        update-others-on-choice next_destination
       ]
-      ;otherwise pickup the passengers that gain from the trip
-      pickup-passengers next_destination
-      update-others-on-choice next_destination
     ]
     
     if next_destination != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
       travel-to next_destination
     ]
+    
   ]
 end
 
@@ -344,7 +351,7 @@ to-report next-best-station [depth]
         set move_probability random-float 1
       ]
     
-    ifelse move_probability <= 0.6
+    ifelse move_probability <= 0.7
     [report (- 1)]
     [
       let random_neighbour_ind random length item current_stop graph
@@ -376,10 +383,6 @@ to-report waiting-reasonable? [ wait_time pass_gain ]
   let loss wait_time * length bus_passengers ;TODO (change bus_passenger with the forecast of it) the time it waits multiplied by the number of passengers it will carry
 
    report gain > loss
-end
-
-to ask-to-wait [receiver_id wait_time pass_gain ]
-  send-message receiver_id (list "wait?" wait_time pass_gain)
 end
 
 

@@ -141,7 +141,26 @@ to handle-messages
       
       set handled lput ? handled ; (item ind inbox) handled
     ]
+        
+    if msg_type = "wait?"[
+      let wait_time item 1 message
+      let pass_gain item 2 message
+      
+      if waiting-reasonable? wait_time pass_gain
+      [
+        send-message sender ["confirm-wait"]
+        set wait_at_next_station_delay eta_next_station + wait_time
+        ]
+      set handled lput ? handled ; (item ind inbox) handled
+
+    ]
     
+     if msg_type = "confirm-wait"[
+      set wait_at_next_station_delay eta_next_station + 1
+      set handled lput ? handled ; (item ind inbox) handled
+    ]
+     
+      
   ]
   
 ;  if length asked_support > 0 and (positive_votes - negative_votes) > 0[
@@ -227,3 +246,4 @@ to call-vote [left_down station]
   let wait_help_delay 0;ceiling measure-distance current_stop 3
   set asked_support lput (list current_stop ticks wait_help_delay ) asked_support
 end
+
