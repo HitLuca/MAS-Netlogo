@@ -380,26 +380,46 @@ to-report find-next-coincidence [station]
   ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return zero
 end
 
-to-report waiting-reasonable? [ wait_time pass_gain ]
+to-report waiting-reasonable? [ wait_time coming_passengers ]
   let station next_stop
   if station = -1[
     set station current_stop
   ]
   
-  let connected_stations item station graph
-  let avg_travel_time (sum map [measure-distance station ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
-  ;how much time will the new passengers have to wait on average before a new bus comes to the station (very approximated)
-  let gain 2 * avg_travel_time * min (list length pass_gain get-capacity) ;this max is because for a bus being full is the maximum gain, it cannot carry more
-
-  let loss wait_time * passenger-forecast
+  if faction = "fast" and length item station station_beliefs > 2 [ report false] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
   
-  report gain > loss
+  let p_forecast passenger-forecast
+  ifelse max p_forecast >= get-capacity[
+    report false ;if the bus will be already full it has no sense for it to wait for more passengers
+  ]
+  [
+    let loss wait_time * max p_forecast ;time the passengers carried by the bus will lose in the wait
+    
+    let connected_stations item station graph
+    let c_forecast [] ;where will the coming_passengers go
+    foreach connected_stations[
+      let station1 ?
+      set c_forecast lput length (filter [ distance-shortened station station1 ?] coming_passengers) c_forecast
+    ]
+    
+    let new_pass (map + c_forecast replace-item (max-index p_forecast) p_forecast 0) ;the passengers dropped plus the left down, grouped by next useful station
+    
+    let avg_travel_time (sum map [measure-distance station ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
+    if length item station station_beliefs > 2[
+      set avg_travel_time avg_travel_time / 3 ;since other buses are coming, the estimated waiting time for left down passengers is diminished
+    ]
+
+    ;how much time will the new passengers (left down by the second bus too) have to wait on average before a new bus comes to the station (approximated)
+    let gain avg_travel_time * max( replace-item (max-index new_pass) new_pass 0) 
+    
+    report gain > loss ;is it worth to wait?
+  ]
 end
 
 to-report passenger-forecast
   let station0 next_stop
   if station0 = -1 [ set station0 current_stop ]
-  report max map [ passenger-gain station0 ? ] item station0 graph
+  report map [ passenger-gain station0 ? ] item station0 graph
 end
 
 

@@ -48,18 +48,9 @@ end
 
 ; count how many passengers get their trip shortened (distance-shortened)
 to-report passenger-gain [station0 station1]
-  let passengers_gain 0
-  foreach get-passengers-at-stop station0[ 
-    if distance-shortened station0 station1 ? [
-      set passengers_gain (passengers_gain + 1)
-    ]
-  ]
+  let passengers_gain length (filter [ distance-shortened station0 station1 ?] get-passengers-at-stop station0)
   ;in case we are not yet in a station we also add the passengers in the bus
-  foreach bus_passengers[ 
-    if distance-shortened station0 station1 ? [
-      set passengers_gain (passengers_gain + 1)
-    ]
-  ]
+  set passengers_gain passengers_gain + length (filter [ distance-shortened station0 station1 ?] bus_passengers)
   report passengers_gain
 end
 
