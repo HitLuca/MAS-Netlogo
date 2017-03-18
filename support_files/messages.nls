@@ -55,19 +55,19 @@ to handle-messages
       if msg_type = "order"[
         ifelse not member? ? pending_orders[
           add-bus (item 2 message)
-          let new_bus_id (bus_count + 24)
+          let new_bus_id (bus_count + ordered_bus_count + 24)
           ;        show new_bus_id
           set new_buses lput new_bus_id new_buses
           set pending_orders lput ? pending_orders
-          set bus_count (bus_count + 1)
+          set ordered_bus_count (ordered_bus_count  + 1)
         ]
         [
           let sender_mother_station item 1 message
 
           send-message (item 0 new_buses ) (list "init" sender_mother_station bus_count station_beliefs)
-          ;send-message sender lput (item 0 new_buses ) ["new-companion"]
+          set bus_count (bus_count + 1)
+          set ordered_bus_count (ordered_bus_count  - 1)
           
-          ;        set independent_buses lput (item 0 new_buses) independent_buses
           let i 0
           while [i < bus_count][
             let id i + 24

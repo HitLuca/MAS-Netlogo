@@ -21,6 +21,7 @@ buses-own [
   
   station_beliefs
   bus_count
+  ordered_bus_count
   
   leader
   new_buses
