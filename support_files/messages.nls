@@ -178,7 +178,7 @@ to handle-messages
 end
 
 to handle-voting
-    let wait_voting_delay 7
+    let wait_voting_delay 3
   if length asked_support > 0[
 ;    show asked_support
     let to_delete []
@@ -192,7 +192,8 @@ to handle-voting
       if voting_station = initiated_voting_station and voting_start + wait_voting_delay = ticks
       [
         if (positive_votes - negative_votes) > 0
-        [send-message leader (list "order" initiated_voting_station 3)]
+        [send-message leader (list "order" initiated_voting_station 3)
+          ]
         set positive_votes 0
         set negative_votes 0
         set initiated_voting_station -1
