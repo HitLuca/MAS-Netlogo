@@ -22,8 +22,7 @@ to handle-messages
     let msg_tick item 0 ? ;item ind inbox
     let msg_type item 0 message
     
-    if ticks - msg_tick >= 1
-    [
+    
       if msg_type = "init"[
         set mother_station item 1 message
         set bus_count item 2 message
@@ -82,7 +81,7 @@ to handle-messages
           set handled lput ? handled ; (item ind inbox) handled
         ]
       ]
-    ]
+    
     
     
     
@@ -119,7 +118,7 @@ to handle-messages
       set handled lput ? handled ; (item ind inbox) handled
     ]
     
-    if msg_type = "vote"[
+    if msg_type = "vote" and ticks > msg_tick [
       let vote item 1 message
       
       ifelse vote[
