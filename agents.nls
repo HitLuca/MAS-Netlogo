@@ -381,8 +381,13 @@ to-report find-next-coincidence [station]
 end
 
 to-report waiting-reasonable? [ wait_time pass_gain ]
-  let connected_stations item next_stop graph
-  let avg_travel_time (sum map [measure-distance next_stop ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
+  let station next_stop
+  if station = -1[
+    set station current_stop
+  ]
+  
+  let connected_stations item station graph
+  let avg_travel_time (sum map [measure-distance station ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
   ;how much time will the new passengers have to wait on average before a new bus comes to the station (very approximated)
   let gain 2 * avg_travel_time * min (list length pass_gain get-capacity) ;this max is because for a bus being full is the maximum gain, it cannot carry more
 
