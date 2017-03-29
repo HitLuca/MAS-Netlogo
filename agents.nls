@@ -150,7 +150,7 @@ to execute-actions
   if mother_station != -1[
     if at-stop [
       drop-passengers ;everytime you reach a stop you drop all passengers
-      ifelse ticks >= wait_till
+      ifelse ticks > wait_till
       [
         ifelse going_in_service[ ; this part decides which will be the next_stop
           go-to-mother_station
@@ -183,11 +183,12 @@ to execute-actions
         pickup-passengers next_destination
         ;update-others-on-choice next_destination
         
-        set wait_till waiting-reasonable? + ticks
-        if wait_till != ticks [
+        set wait_till wait-until + ticks
+        if wait_till > ticks [
           drop-passengers
           set next_destination -1
         ]
+        
       ]
       [
         set next_destination -1
@@ -307,7 +308,7 @@ to-report bus-needed? [left_down station]
     set threshold 300
   ]
   
-  set threshold threshold + 10 * max (list 0 (bus_count - 30))
+  set threshold threshold + 10 * max (list 0 (bus_count - 25))
   
   let need (left_down + pas_wait + passengers_expected - bus_coming * 100 - buses_ordered * 100)
   
@@ -405,7 +406,7 @@ to-report find-next-coincidence [station]
   ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return zero
 end
 
-to-report waiting-reasonable?
+to-report wait-until
   let station current_stop
   let wait_time 0
   let coming_passengers []
@@ -416,12 +417,12 @@ to-report waiting-reasonable?
   ]
   [report 0] ; if no one is directed to the station don't wait
   
-  if faction = "fast" and length item station bus_beliefs > 1 [ report false] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
-  if length item station bus_beliefs > 2 [ report false]
+  if faction = "fast" and length item station bus_beliefs > 1 [ report 0] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
+  if length item station bus_beliefs > 2 [ report 0]
   
-  let p_forecast passenger-forecast
+  let p_forecast map [ passenger-gain station ? ] item station graph
   ifelse max p_forecast >= get-capacity[
-    report false ;if the bus will be already full it has no sense for it to wait for more passengers
+    report 0 ;if the bus will be already full it has no sense for it to wait for more passengers
   ]
   [
     let loss wait_time * max p_forecast ;time the passengers carried by the bus will lose in the wait
@@ -447,11 +448,6 @@ to-report waiting-reasonable?
   ]
 end
 
-to-report passenger-forecast
-  let station0 next_stop
-  if station0 = -1 [ set station0 current_stop ]
-  report map [ passenger-gain station0 ? ] item station0 graph
-end
 
 
 
