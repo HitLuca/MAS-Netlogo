@@ -44,7 +44,7 @@ buses-own [
   asked_support
   help_distance_threshold
   
-  wait_at_next_station_delay
+  wait_till
   
   starting_buses
   
@@ -148,9 +148,9 @@ to execute-actions
   update-beliefs
   
   if mother_station != -1[
-    ifelse at-stop [
+    if at-stop [
       drop-passengers ;everytime you reach a stop you drop all passengers
-      ifelse ticks >= wait_at_next_station_delay
+      ifelse ticks >= wait_till
       [
         ifelse going_in_service[ ; this part decides which will be the next_stop
           go-to-mother_station
@@ -182,14 +182,18 @@ to execute-actions
         
         pickup-passengers next_destination
         ;update-others-on-choice next_destination
+        
+        set wait_till waiting-reasonable? + ticks
+        if wait_till != ticks [
+          drop-passengers
+          set next_destination -1
+        ]
       ]
       [
         set next_destination -1
-        ]
+      ]
     ]
-    [
       ;if eta_next_station - ticks < 5 [ waiting-request? ]
-    ]
     
     if next_destination != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
       travel-to next_destination
@@ -317,7 +321,7 @@ to update-beliefs
   ;erase from the list of bus_beliefs the buses that already reached their destination, rebuilding the beliefs list with the updated knowledge
   foreach bus_beliefs [
     let old_bb ?
-    set new_bb lput (filter [? > ticks] old_bb) new_bb
+    set new_bb lput (filter [item 0 ? > ticks] old_bb) new_bb
   ]
   
   ;add the buses that just left to the bus_beliefs
@@ -327,7 +331,7 @@ to update-beliefs
     if length departed > 0 [
       let likely_destination item max-index (get-passenger_beliefs station departed) item station graph
       ;add to the element of the likely destination (which is a list) the new information about the arrival time of the bus that just left from station
-      set new_bb replace-item likely_destination new_bb (lput (ticks + round measure-distance station likely_destination) item likely_destination new_bb)
+      set new_bb replace-item likely_destination new_bb (lput (list (ticks + round measure-distance station likely_destination) departed) item likely_destination new_bb)
     ]
   ]
 
@@ -393,27 +397,24 @@ to-report next-best-station [depth]
   ]
 end
 
-to waiting-request?
-  let coincidence find-next-coincidence next_stop
-  if length coincidence > 0[
-    let wait_time eta_next_station - item 1 coincidence
-    if length bus_passengers > 0[
-      if waiting-reasonable? wait_time bus_passengers [ ask-to-wait item 0 coincidence wait_time bus_passengers ]
-    ]
-  ]
-end
+
 
 to-report find-next-coincidence [station]
-  let bus_coming filter [item 1 ? < eta_next_station] item station bus_beliefs ;other buses coming to my next station before me
-  set bus_coming sort-by [item 1 ?1 > item 1 ?2] bus_coming ;order by descending time of arrival
+  let bus_coming filter [item 0 ? > eta_next_station] item station bus_beliefs ;other buses coming to this station after me
+  set bus_coming sort-by [item 0 ?1 < item 0 ?2] bus_coming ;order by descending time of arrival
   ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return zero
 end
 
-to-report waiting-reasonable? [ wait_time coming_passengers ]
-  let station next_stop
-  if station = -1[
-    set station current_stop
+to-report waiting-reasonable?
+  let station current_stop
+  let wait_time 0
+  let coming_passengers []
+  let coincidence find-next-coincidence station
+  ifelse length coincidence > 0[
+    set wait_time item 0 coincidence - ticks
+    set coming_passengers item 1 coincidence
   ]
+  [report 0] ; if no one is directed to the station don't wait
   
   if faction = "fast" and length item station bus_beliefs > 1 [ report false] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
   if length item station bus_beliefs > 2 [ report false]
@@ -442,7 +443,7 @@ to-report waiting-reasonable? [ wait_time coming_passengers ]
     ;how much time will the new passengers (left down by the second bus too) have to wait on average before a new bus comes to the station (approximated)
     let gain avg_travel_time * max( replace-item (max-index new_pass) new_pass 0) 
     
-    report gain > loss ;is it worth to wait?
+    ifelse gain > loss [ report wait_time ] [ report 0 ] ;is it worth to wait?
   ]
 end
 
