@@ -20,6 +20,8 @@ buses-own [
   going_in_service
   
   station_beliefs
+  bus_beliefs
+  
   bus_count
   ordered_bus_count
   
@@ -71,7 +73,9 @@ to init-buses
   
   set next_destination next_stop
   
-  set station_beliefs n-values 24 [ [] ]
+  set station_beliefs n-values 24 [get-passengers-at-stop ?]
+  set bus_beliefs n-values 24 [ [] ]
+
   
   let assigned_stations  [8 16 3 10 23 0 5 1 2 4 6 7 9 11 12 13 14 15 17 18 19 20 21 22] ;[15 14 7 23 21 19 12 9 1 20 16 13 11 10 8 3 2 22 18 17 5 0 6 4] 
   
@@ -177,14 +181,14 @@ to execute-actions
         ;otherwise pickup the passengers that gain from the trip
         
         pickup-passengers next_destination
-        update-others-on-choice next_destination
+        ;update-others-on-choice next_destination
       ]
       [
         set next_destination -1
         ]
     ]
     [
-      if eta_next_station - ticks < 5 [ waiting-request? ]
+      ;if eta_next_station - ticks < 5 [ waiting-request? ]
     ]
     
     if next_destination != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
@@ -267,7 +271,7 @@ to pickup-passengers [station]
         ]
       ]
     
-    if (bus-needed? left_down current_stop) [;and not voting_in_process [
+    if (bus-needed? left_down current_stop) and not voting_in_process [
       call-vote left_down current_stop
     ]
   ]
@@ -276,8 +280,6 @@ end
 
 ;checks if a new bus needs to be bought or not
 to-report bus-needed? [left_down station]
- 
-
   let buses_ordered 0
   foreach asked_support
   [
@@ -289,10 +291,10 @@ to-report bus-needed? [left_down station]
   
   
   let pas_wait (length get-passengers-at-stop station) ;how many people are right now in the station
-  let bus_coming length item station station_beliefs ; for now there is only one fixed bus for each stop
+  let bus_coming length item station bus_beliefs ; for now there is only one fixed bus for each stop
   let passengers_expected get-passengers-next-quarter station
   
-  let threshold 0
+  let threshold get-capacity - length bus_passengers ;the more it is full the more eager it is to buy a bus
   
   ifelse faction = "fast"[
     set threshold 150
@@ -301,31 +303,53 @@ to-report bus-needed? [left_down station]
     set threshold 300
   ]
   
+  set threshold threshold + 10 * max (list 0 (bus_count - 30))
+  
   let need (left_down + pas_wait + passengers_expected - bus_coming * 100 - buses_ordered * 100)
   
   report (need > threshold) 
 end
 
 to update-beliefs
-  let new_b []
-  foreach station_beliefs [
-    let nsb ?
-    ;erase from the list of beliefs the buses that already reached their destination
-    let arrived []
-    foreach ?[
-      if item 1 ? < ticks [ set arrived lput ? arrived ]
-    ]
-    foreach arrived [ set nsb remove ? nsb ]
-    ;start rebuilding the beliefs list with the updated knowledge
-    set new_b lput nsb new_b
+  let new_bb []
+  let new_sb n-values 24 [get-passengers-at-stop ?] ;all passengers in all stations in this tick (grouped by station they are in)
+  
+  ;erase from the list of bus_beliefs the buses that already reached their destination, rebuilding the beliefs list with the updated knowledge
+  foreach bus_beliefs [
+    let old_bb ?
+    set new_bb lput (filter [? > ticks] old_bb) new_bb
   ]
-  set station_beliefs new_b ;beliefs updated
+  
+  ;add the buses that just left to the bus_beliefs
+  foreach n-values 24 [?] [
+    let station ?
+    let departed filter [not member? ? item station new_sb] item station station_beliefs
+    if length departed > 0 [
+      let likely_destination item max-index (get-passenger_beliefs station departed) item station graph
+      ;add to the element of the likely destination (which is a list) the new information about the arrival time of the bus that just left from station
+      set new_bb replace-item likely_destination new_bb (lput (ticks + round measure-distance station likely_destination) item likely_destination new_bb)
+    ]
+  ]
+
+  ;update beliefs
+  set bus_beliefs new_bb
+  set station_beliefs new_sb
+end
+
+to-report get-passenger_beliefs [ station0 pass ]
+  let pass_b [] 
+  let connected_stations item station0 graph
+  foreach connected_stations[
+    let station1 ?
+    set pass_b lput length (filter [ distance-shortened station0 station1 ?] pass) pass_b
+  ]
+  report pass_b
 end
 
 ;attractivness estimation of a station by itself
 to-report measure-attractivness [ station ]
   let waiting_passengers length get-passengers-at-stop station
-  let bus_count_for_stop length item station station_beliefs
+  let bus_count_for_stop length item station bus_beliefs
   let prior get-passengers-next-quarter station
   
   let att (0.5 * waiting_passengers + 0.5 * prior) - 50 * bus_count_for_stop
@@ -355,7 +379,7 @@ to-report next-best-station [depth]
     ;however if there's a bus, move with some proability
     let move_probability 0
     
-    if length item current_stop station_beliefs > 0
+    if length item current_stop bus_beliefs > 0
       [
         set move_probability random-float 1
       ]
@@ -380,7 +404,7 @@ to waiting-request?
 end
 
 to-report find-next-coincidence [station]
-  let bus_coming filter [item 1 ? < eta_next_station] item station station_beliefs ;other buses coming to my next station before me
+  let bus_coming filter [item 1 ? < eta_next_station] item station bus_beliefs ;other buses coming to my next station before me
   set bus_coming sort-by [item 1 ?1 > item 1 ?2] bus_coming ;order by descending time of arrival
   ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return zero
 end
@@ -391,8 +415,8 @@ to-report waiting-reasonable? [ wait_time coming_passengers ]
     set station current_stop
   ]
   
-  if faction = "fast" and length item station station_beliefs > 1 [ report false] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
-  if length item station station_beliefs > 2 [ report false]
+  if faction = "fast" and length item station bus_beliefs > 1 [ report false] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
+  if length item station bus_beliefs > 2 [ report false]
   
   let p_forecast passenger-forecast
   ifelse max p_forecast >= get-capacity[
@@ -411,7 +435,7 @@ to-report waiting-reasonable? [ wait_time coming_passengers ]
     let new_pass (map + c_forecast replace-item (max-index p_forecast) p_forecast 0) ;the passengers dropped plus the left down, grouped by next useful station
     
     let avg_travel_time (sum map [measure-distance station ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
-    if length item station station_beliefs > 1[
+    if length item station bus_beliefs > 1[
       set avg_travel_time avg_travel_time / 3 ;since other buses are coming, the estimated waiting time for left down passengers is diminished
     ]
 

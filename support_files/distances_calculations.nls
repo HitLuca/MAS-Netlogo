@@ -24,7 +24,7 @@ end
 
 ;checks if two stations are directly connected or not
 to-report is-connected [origin destination]
-  ifelse member? destination item origin graph [report true] [report false]
+  report member? destination item origin graph
 end
 
 ;returns the optimal station to move given the loaded passengers destinations
@@ -55,7 +55,7 @@ to-report passenger-gain [station0 station1]
 end
 
 to-report consider-migration
-  let gain map [ get-gain ? ] n-values 24 [?]
+  let gain n-values 24 [ get-attractivness ? 1]
   ifelse max gain > 0 [
     set mother_station max-index gain
     set going_in_service true
@@ -75,7 +75,7 @@ to-report get-gain [station]
 ;  ]
   
   let waiting_passengers length get-passengers-at-stop station
-  let bus_count_for_stop length item station station_beliefs
+  let bus_count_for_stop length item station bus_beliefs
   let prior get-passengers-next-quarter station
 
   let waiting_passengers_denominator 0
@@ -86,7 +86,7 @@ to-report get-gain [station]
       set waiting_passengers_denominator waiting_passengers_denominator + length get-passengers-at-stop ?
     ]
     if bus_count_for_stop != 0 [
-      set bus_count_for_stop_denominator bus_count_for_stop_denominator + length item ? station_beliefs
+      set bus_count_for_stop_denominator bus_count_for_stop_denominator + length item ? bus_beliefs
     ]
     if prior != 0 [
       set prior_denominator prior_denominator + get-passengers-next-quarter ?

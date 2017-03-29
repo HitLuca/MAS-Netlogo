@@ -26,7 +26,7 @@ to handle-messages
       if msg_type = "init"[
         set mother_station item 1 message
         set bus_count item 2 message
-        set station_beliefs item 3 message
+        set bus_beliefs item 3 message
         set handled lput ? handled ; (item ind inbox) handled
       ]
       
@@ -63,7 +63,7 @@ to handle-messages
         [
           let sender_mother_station item 1 message
 
-          send-message (item 0 new_buses ) (list "init" sender_mother_station bus_count station_beliefs)
+          send-message (item 0 new_buses ) (list "init" sender_mother_station bus_count bus_beliefs)
           set bus_count (bus_count + 1)
           set ordered_bus_count (ordered_bus_count  - 1)
           
@@ -131,14 +131,14 @@ to handle-messages
       set handled lput ? handled ; (item ind inbox) handled
     ]
     
-    if msg_type = "moving-to"[
-      let station item 1 message
-      let eta item 2 message
-      let new_station_belief lput (list sender eta) (item station station_beliefs)
-      set station_beliefs replace-item station station_beliefs new_station_belief
-      
-      set handled lput ? handled ; (item ind inbox) handled
-    ]
+;    if msg_type = "moving-to"[
+;      let station item 1 message
+;      let eta item 2 message
+;      let new_station_belief lput (list sender eta) (item station bus_beliefs)
+;      set station_beliefs replace-item station station_beliefs new_station_belief
+;      
+;      set handled lput ? handled ; (item ind inbox) handled
+;    ]
         
     if msg_type = "wait?"[
       let wait_time item 1 message
@@ -216,17 +216,17 @@ to handle-voting
 end
 
 
-to update-others-on-choice [ destination ]
-  if destination != -1[
-    set eta_next_station ticks + floor (measure-distance current_stop destination)
-    
-    foreach n-values bus_count [ ? + 24 ] [
-    if ? != bus_id[
-      send-message ?  (list "moving-to" destination eta_next_station)
-      ]
-    ]
-  ]
-end
+;to update-others-on-choice [ destination ]
+;  if destination != -1[
+;    set eta_next_station ticks + floor (measure-distance current_stop destination)
+;    
+;    foreach n-values bus_count [ ? + 24 ] [
+;    if ? != bus_id[
+;      send-message ?  (list "moving-to" destination eta_next_station)
+;      ]
+;    ]
+;  ]
+;end
 
 to call-vote [left_down station]
   foreach n-values bus_count [ ? + 24 ] [
