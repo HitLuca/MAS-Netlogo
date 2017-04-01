@@ -53,7 +53,7 @@ to handle-messages
       
       if msg_type = "order"[
         ifelse not member? ? pending_orders[
-          add-bus (item 2 message)
+          add-bus (item 3 message)
           let new_bus_id (bus_count + ordered_bus_count + 24)
           ;        show new_bus_id
           set new_buses lput new_bus_id new_buses
@@ -120,35 +120,33 @@ to handle-messages
          set free_seats_ratio 0.5
         ]
       
-      if dist <= dist_threshold
+
+      let vote (bus-needed? sender_left_down sender_current_stop)
+      
+      ifelse vote [
+        set vote "yes" 
+      ]
       [
-        let vote (bus-needed? sender_left_down sender_current_stop)
-        
-        ifelse vote [
-          set vote "yes" 
-        ]
+        if dist <= dist_threshold and get-capacity - length bus_passengers > (get-capacity * free_seats_ratio)
         [
-          if dist <= dist_threshold and get-capacity - length bus_passengers > (get-capacity * free_seats_ratio)
+          if faction = "cheap"
           [
-            if faction = "cheap"
-            [
-              let test_fast_bus_needed bus-needed-eval sender_left_down sender_current_stop 200
-              show test_fast_bus_needed
-              if test_fast_bus_needed[
-                send-message sender lput dist lput "help" ["vote"]
-              ]
+            let test_fast_bus_needed bus-needed-eval sender_left_down sender_current_stop 250
+            show test_fast_bus_needed
+            if test_fast_bus_needed[
+              send-message sender lput dist lput "help" ["vote"]
             ]
           ]
-          
-          set vote "no" 
         ]
         
-        if dist <= 20
-        [
-          send-message sender lput vote ["vote"]
-        ]
+        set vote "no" 
       ]
       
+      if dist <= 20
+      [
+        send-message sender lput vote ["vote"]
+      ]
+    
             
       ;here implement the decision if you should help
       
@@ -169,16 +167,12 @@ to handle-messages
       
       if vote = "help"
       [
-        
         let help_distance item 2 message;
-        
-        show help_distance
         
         if help_distance <= dist_threshold and (length help_info = 0 or help_distance < item 1 help_info)
         [
           set help_info list sender help_distance
         ]
-        
      ]
       
       set handled lput ? handled ; (item ind inbox) handled

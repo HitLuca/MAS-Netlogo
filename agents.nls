@@ -110,12 +110,12 @@ to init-buses
   
   ifelse bus_id mod 3 = 0[ ;buses can be cheap or fast, randomly assigned with different probabilities (1/3 and 2/3)
     set faction "cheap"
-    set dist_threshold 30
+    set dist_threshold 10
     ;less prone to buy or vote in favour of new buses, they care more about economic efficiency
   ]
   [
     set faction "fast"
-    set dist_threshold 20
+    set dist_threshold 10
     ;more interested in bringing people around faster, they are more likely to order and vote for new buses
   ]
   
@@ -281,7 +281,7 @@ to pickup-passengers [station]
         ]
       ]
     
-    if (bus-needed? left_down current_stop) and not voting_in_process [
+    if (bus-needed? left_down current_stop) [;and not voting_in_process [
       call-vote left_down current_stop
     ]
   ]
