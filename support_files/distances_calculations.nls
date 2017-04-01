@@ -60,24 +60,18 @@ to-report consider-migration
     set mother_station max-index gain
     set going_in_service true
     report true
-  ]
-  [
-    report false
+  ] [
+  report false
   ]
 end
 
 to-report get-gain [station]
-  ;gain parameters calculation
   let passengers_gain passenger-gain current_stop station
-  
-;  if passengers_gain != 0 [
-;    set passengers_gain passengers_gain / length get-passengers-at-stop current_stop
-;  ]
   
   let waiting_passengers length get-passengers-at-stop station
   let bus_count_for_stop length item station bus_beliefs
   let prior get-passengers-next-quarter station
-
+  
   let waiting_passengers_denominator 0
   let bus_count_for_stop_denominator 0
   let prior_denominator 0
@@ -94,22 +88,14 @@ to-report get-gain [station]
   ]
   
   if waiting_passengers_denominator != 0 [
-  set waiting_passengers waiting_passengers / waiting_passengers_denominator
+    set waiting_passengers waiting_passengers / waiting_passengers_denominator
   ]
   if bus_count_for_stop_denominator != 0 [
-  set bus_count_for_stop bus_count_for_stop / bus_count_for_stop_denominator
+    set bus_count_for_stop bus_count_for_stop / bus_count_for_stop_denominator
   ]
   if prior_denominator != 0 [
-  set prior prior / prior_denominator
+    set prior prior / prior_denominator
   ]
-  
-;  let station_distance measure-distance current_stop station
-;  let efficiency_rate passengers_gain / station_distance
-  
-
-  
-  ;show "buses_ordered"
-;  show buses_ordered
   
   let  gain  (1 * passengers_gain) + (0.7 * waiting_passengers) + (0.5 * prior) - (70 * (bus_count_for_stop))
   
