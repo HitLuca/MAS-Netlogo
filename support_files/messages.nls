@@ -53,7 +53,7 @@ to handle-messages
       
       if msg_type = "order"[
         ifelse not member? ? pending_orders[
-          add-bus (item 3 message)
+          add-bus (item 2 message)
           let new_bus_id (bus_count + ordered_bus_count + 24)
           ;        show new_bus_id
           set new_buses lput new_bus_id new_buses
@@ -252,7 +252,7 @@ to handle-voting
         [
           if (positive_votes - negative_votes) > 0
           [
-            send-message leader (list "order" initiated_voting_station 3)
+            send-message leader (list "order" initiated_voting_station 2)
           ]
         ]
         
