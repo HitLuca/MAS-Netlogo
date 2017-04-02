@@ -65,6 +65,7 @@ to-report consider-migration
   ]
 end
 
+;get the gain from a station, as a function of the passengers and the buses
 to-report get-gain [station]
   let passengers_gain passenger-gain current_stop station
   

@@ -4,16 +4,16 @@ buses-own [
   ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
   bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
   bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
-    
-  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  
+                  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
   inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
   bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
   previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
   current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
   next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
-
-  ; New local variables for students.
-  ; You can create any new local variable you want. Just declare them here.
+  
+                  ; New local variables for students.
+                  ; You can create any new local variable you want. Just declare them here.
   distance_matrix
   passengers_matrix
   mother_station
@@ -49,7 +49,6 @@ buses-own [
   
   starting_buses
   
-  ;attractiveness protocols
   attractiveness
   
   help_info
@@ -78,22 +77,20 @@ to init-buses
   
   set station_beliefs n-values 24 [get-passengers-at-stop ?]
   set bus_beliefs n-values 24 [ [] ]
-
+  
   
   let assigned_stations  [8 16 3 10 23 0 5 1 2 4 6 7 9 11 12 13 14 15 17 18 19 20 21 22] ;[15 14 7 23 21 19 12 9 1 20 16 13 11 10 8 3 2 22 18 17 5 0 6 4] 
   
-  if bus_id = 24
-  [
+  if bus_id = 24 [
     set bus_count starting_buses + 1
-    ]
+  ]
   
-  ifelse bus_id != 24 and bus_id < 24 + starting_buses + 1[
-    set mother_station item (bus_id - 25) assigned_stations; mod 24; to the one of the bus that asked for support (check inbox)
+  ifelse bus_id != 24 and bus_id < 24 + starting_buses + 1 [
+    set mother_station item (bus_id - 25) assigned_stations
     set bus_count starting_buses + 1
     
-  ]
-  [
-    set mother_station -1
+  ] [
+  set mother_station -1
   ]
   
   set leader 24
@@ -101,46 +98,35 @@ to init-buses
   set last_order_tick 0
   set going_in_service True
   
-  if leader = bus_id[
+  if leader = bus_id [
     set new_buses []
     set pending_orders []
   ]
   
   set vote_distance_threshold 10
   
-  ifelse bus_id mod 3 = 0[ ;buses can be cheap or fast, randomly assigned with different probabilities (1/3 and 2/3)
+  ifelse bus_id mod 3 = 0 [ ;buses can be cheap or fast, randomly assigned with different probabilities (1/3 and 2/3)
     set faction "cheap"
     set dist_threshold 10
     ;less prone to buy or vote in favour of new buses, they care more about economic efficiency
-  ]
-  [
-    set faction "fast"
-    set dist_threshold 10
-    ;more interested in bringing people around faster, they are more likely to order and vote for new buses
+  ] [
+  set faction "fast"
+  set dist_threshold 10
+  ;more interested in bringing people around faster, they are more likely to order and vote for new buses
   ]
   
   set asked_support []
   set help_distance_threshold 10
-  
-  
-  ;set attractivness []
 end
-
-
-;----utility function
 
 to-report max-index [array]
   report position (max array) array
 end
 
-
-;--------------------------------------------------------;
-;--------------------MAIN ROUTINE------------------------;
-;--------------------------------------------------------;
+;main routine
 to execute-actions
   if bus_id = 24 and ticks = 2 [
-    ;let node_stations [0 3 13 16 22 23 ...] ; this are the main nodes of the graph, the ones that have a fixed bus
-    foreach n-values starting_buses [?] [ ; [i < length node_stations] [
+    foreach n-values starting_buses [?] [
       add-bus 3
     ]
     set mother_station 3
@@ -152,31 +138,14 @@ to execute-actions
   
   update-beliefs
   
-  if mother_station != -1[
+  if mother_station != -1 [
     if at-stop [
       drop-passengers ;everytime you reach a stop you drop all passengers
-      ifelse ticks > wait_till
-      [
+      ifelse ticks > wait_till [
         ifelse going_in_service[ ; this part decides which will be the next_stop
           go-to-mother_station
-        ]
-        [
-          ;buses decide their mother_station based on where they are more needed (
-          ;        if current_stop != mother_station[
-          ;          ;TODO this protocolo has to be improved and also consider other buses destinations and the prior
-          ;          if (length get-passengers-at-stop mother_station) < (length get-passengers-at-stop current_stop)[
-          ;            set mother_station current_stop ; the mother station changes to the current one if this has more passengers than the previous
-          ;          ]
-          ;        ]
-          ;        
-          ;        
-          ;        ifelse current_stop = mother_station [
-          set next_destination next-best-station 2 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
-                                                   ;set next_stop get-optimal-station ;using gain
-                                                   ;        ]
-                                                   ;        [
-                                                   ;          set next_stop mother_station
-                                                   ;        ]
+        ] [
+        set next_destination next-best-station 2 ;using recursive attractivness, the number is how far it has to go with measuring recursive attractivness
         ]
         if next_destination = -1[ ;if no local choice gives gain, search further away
           if consider-migration[
@@ -184,27 +153,20 @@ to execute-actions
           ]
         ]
         ;otherwise pickup the passengers that gain from the trip
-        
         pickup-passengers next_destination
-        ;update-others-on-choice next_destination
         
         set wait_till wait-until + ticks
         if wait_till > ticks [
           drop-passengers
           set next_destination -1
         ]
-        
-      ]
-      [
-        set next_destination -1
+      ] [
+      set next_destination -1
       ]
     ]
-      ;if eta_next_station - ticks < 5 [ waiting-request? ]
-    
-    if next_destination != -1[ ;if no one is waiting in the motherstation the bus doesn't move.
+    if next_destination != -1 [ ;if no one is waiting in the motherstation the bus doesn't move.
       travel-to next_destination
     ]
-    
   ]
 end
 
@@ -213,9 +175,8 @@ to travel-to-destination [origin destination]
   if origin != destination [
     ifelse is-connected origin destination [
       set next_destination destination
-    ]
-    [
-      set next_destination station-closer-to-destination origin destination
+    ] [
+    set next_destination station-closer-to-destination origin destination
     ]
   ]
 end
@@ -230,11 +191,10 @@ to go-to-mother_station
   ifelse current_stop = mother_station [
     set going_in_service False
     set next_destination get-optimal-station
+  ] [
+  if at-stop [
+    travel-to-destination current_stop mother_station
   ]
-  [
-    if at-stop [
-      travel-to-destination current_stop mother_station
-    ]
   ]
 end
 
@@ -249,7 +209,7 @@ end
 to-report full 
   report (length bus_passengers = get-capacity)
 end
- 
+
 ;drops all the passengers
 to drop-passengers
   foreach bus_passengers [
@@ -265,75 +225,59 @@ to pickup-passengers [station]
       if distance-shortened current_stop station ? [ ;if the passenger gains something from the planned trip
         ifelse not full [ 
           pick-up-passenger item 0 ? ;if the bus has spare places it will load the passenger
-        ]
-        [
-          set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
+        ] [
+        set left_down (left_down + 1) ;the bus counts how many passengers couldn't load
         ]
       ]
     ]
     
     let voting_in_process false
-    foreach asked_support
-    [
-      if item 0 ? = current_stop
-      [
+    foreach asked_support [
+      if item 0 ? = current_stop [
         set voting_in_process true
-        ]
       ]
+    ]
     
-    if (bus-needed? left_down current_stop) [;and not voting_in_process [
+    if (bus-needed? left_down current_stop) [
       call-vote left_down current_stop
     ]
   ]
-  
 end
- 
+
+;check if a new bus is needed, based on the people left down at a station
 to-report bus-needed? [left_down station]
   let threshold 300
-  
-  if faction = "fast"[
+  if faction = "fast" [
     set threshold 150
   ]
-  
   report bus-needed-eval left_down station threshold
 end
 
 ;checks if a new bus needs to be bought or not
 to-report bus-needed-eval [left_down station threshold]
   let buses_ordered 0
-  foreach asked_support
-  [
-    if station = item 0 ?
-    [
+  foreach asked_support [
+    if station = item 0 ? [
       set buses_ordered buses_ordered + 1
     ]
   ]
-  
   
   let pas_wait (length get-passengers-at-stop station) ;how many people are right now in the station
   let bus_coming length item station bus_beliefs ; for now there is only one fixed bus for each stop
   let passengers_expected get-passengers-next-quarter station
   
-;  let threshold get-capacity - length bus_passengers ;the more it is full the more eager it is to buy a bus
-  
-
-  
   set threshold threshold + 10 * max (list 0 (bus_count - 25))
   
   let need (left_down + pas_wait + passengers_expected - bus_coming * 100 - buses_ordered * 100)
-  
-;  show "debug"
-;  show threshold
-;  show need
-  
   report (need > threshold) 
 end
 
+;update the bus beliefs
 to update-beliefs
   let new_bb []
   let new_sb n-values 24 [get-passengers-at-stop ?] ;all passengers in all stations in this tick (grouped by station they are in)
   
-  ;erase from the list of bus_beliefs the buses that already reached their destination, rebuilding the beliefs list with the updated knowledge
+                                                    ;erase from the list of bus_beliefs the buses that already reached their destination, rebuilding the beliefs list with the updated knowledge
   foreach bus_beliefs [
     let old_bb ?
     set new_bb lput (filter [item 0 ? > ticks] old_bb) new_bb
@@ -345,11 +289,12 @@ to update-beliefs
     let departed filter [not member? ? item station new_sb] item station station_beliefs
     if length departed > 0 [
       let likely_destination item max-index (get-passenger_beliefs station departed) item station graph
+      
       ;add to the element of the likely destination (which is a list) the new information about the arrival time of the bus that just left from station
       set new_bb replace-item likely_destination new_bb (lput (list (ticks + round measure-distance station likely_destination) departed) item likely_destination new_bb)
     ]
   ]
-
+  
   ;update beliefs
   set bus_beliefs new_bb
   set station_beliefs new_sb
@@ -358,7 +303,7 @@ end
 to-report get-passenger_beliefs [ station0 pass ]
   let pass_b [] 
   let connected_stations item station0 graph
-  foreach connected_stations[
+  foreach connected_stations [
     let station1 ?
     set pass_b lput length (filter [ distance-shortened station0 station1 ?] pass) pass_b
   ]
@@ -390,36 +335,35 @@ end
 ;based on recursive attractivness and passenger gain, it tries to estimates the best stop to go next
 to-report next-best-station [depth]
   let connected_stations item current_stop graph
-  let gain map [ (2 * passenger-gain current_stop ? + get-attractivness ? depth) ] connected_stations ;/ ln measure-distance current_stop ? ] connected_stations
-  ifelse max gain > 0
-  [report item max-index gain connected_stations]
-  [
-    ;if there's no gain prefer not to move
-    ;however if there's a bus, move with some proability
-    let move_probability 0
-    
-    if length item current_stop bus_beliefs > 0
-      [
-        set move_probability random-float 1
-      ]
-    
-    ifelse move_probability <= 0.6
-    [report (- 1)]
-    [
-      let random_neighbour_ind random length item current_stop graph
-      report item random_neighbour_ind item current_stop graph
-    ]
+  let gain map [ (2 * passenger-gain current_stop ? + get-attractivness ? depth) ] connected_stations
+  ifelse max gain > 0 [
+    report item max-index gain connected_stations
+  ] [
+  ;if there's no gain prefer not to move
+  ;however if there's a bus, move with some proability
+  let move_probability 0
+  
+  if length item current_stop bus_beliefs > 0 [
+    set move_probability random-float 1
+  ]
+  
+  ifelse move_probability <= 0.6 [
+    report (- 1)
+  ] [
+  let random_neighbour_ind random length item current_stop graph
+  report item random_neighbour_ind item current_stop graph
+  ]
   ]
 end
 
-
-
+;find the coincidence with another bus
 to-report find-next-coincidence [station]
   let bus_coming filter [item 0 ? > eta_next_station] item station bus_beliefs ;other buses coming to this station after me
   set bus_coming sort-by [item 0 ?1 < item 0 ?2] bus_coming ;order by descending time of arrival
   ifelse length bus_coming > 0 [ report first bus_coming ] [ report [] ] ;report the id of the bus that arrives right before me, if there's none, return zero
 end
 
+;procedure used when a bus decides that it wants to wait another bus
 to-report wait-until
   let station current_stop
   let wait_time 0
@@ -428,8 +372,7 @@ to-report wait-until
   ifelse length coincidence > 0[
     set wait_time item 0 coincidence - ticks
     set coming_passengers item 1 coincidence
-  ]
-  [report 0] ; if no one is directed to the station don't wait
+  ] [report 0] ; if no one is directed to the station don't wait
   
   if faction = "fast" and length item station bus_beliefs > 1 [ report 0] ;if there are more buses then the two in the negotiation coming a fast bus will never wait
   if length item station bus_beliefs > 2 [ report 0]
@@ -437,28 +380,27 @@ to-report wait-until
   let p_forecast map [ passenger-gain station ? ] item station graph
   ifelse max p_forecast >= get-capacity[
     report 0 ;if the bus will be already full it has no sense for it to wait for more passengers
+  ] [
+  let loss wait_time * max p_forecast ;time the passengers carried by the bus will lose in the wait
+  
+  let connected_stations item station graph
+  let c_forecast [] ;where will the coming_passengers go
+  foreach connected_stations[
+    let station1 ?
+    set c_forecast lput length (filter [ distance-shortened station station1 ?] coming_passengers) c_forecast
   ]
-  [
-    let loss wait_time * max p_forecast ;time the passengers carried by the bus will lose in the wait
-    
-    let connected_stations item station graph
-    let c_forecast [] ;where will the coming_passengers go
-    foreach connected_stations[
-      let station1 ?
-      set c_forecast lput length (filter [ distance-shortened station station1 ?] coming_passengers) c_forecast
-    ]
-    
-    let new_pass (map + c_forecast replace-item (max-index p_forecast) p_forecast 0) ;the passengers dropped plus the left down, grouped by next useful station
-    
-    let avg_travel_time (sum map [measure-distance station ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
-    if length item station bus_beliefs > 1[
-      set avg_travel_time avg_travel_time / 3 ;since other buses are coming, the estimated waiting time for left down passengers is diminished
-    ]
-
-    ;how much time will the new passengers (left down by the second bus too) have to wait on average before a new bus comes to the station (approximated)
-    let gain avg_travel_time * max( replace-item (max-index new_pass) new_pass 0) 
-    
-    ifelse gain > loss [ report wait_time ] [ report 0 ] ;is it worth to wait?
+  
+  let new_pass (map + c_forecast replace-item (max-index p_forecast) p_forecast 0) ;the passengers dropped plus the left down, grouped by next useful station
+  
+  let avg_travel_time (sum map [measure-distance station ?] connected_stations / length connected_stations);the average lenght of the edges from the next stop
+  if length item station bus_beliefs > 1[
+    set avg_travel_time avg_travel_time / 3 ;since other buses are coming, the estimated waiting time for left down passengers is diminished
+  ]
+  
+  ;how much time will the new passengers (left down by the second bus too) have to wait on average before a new bus comes to the station (approximated)
+  let gain avg_travel_time * max( replace-item (max-index new_pass) new_pass 0) 
+  
+  ifelse gain > loss [ report wait_time ] [ report 0 ] ;is it worth to wait?
   ]
 end
 
